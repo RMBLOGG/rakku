@@ -178,17 +178,6 @@ fun RegisterScreen(
                 )
             }
 
-            if (state is AuthUiState.RegisteredCheckEmail) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Pendaftaran berhasil! Cek email kamu untuk konfirmasi, lalu login.",
-                    color = CyanAccent,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
             Spacer(modifier = Modifier.height(28.dp))
 
             // Register Button

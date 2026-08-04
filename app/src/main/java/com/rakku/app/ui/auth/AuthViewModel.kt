@@ -14,10 +14,6 @@ sealed class AuthUiState {
     object Idle : AuthUiState()
     object Loading : AuthUiState()
     object Success : AuthUiState()
-    // Registrasi berhasil (user kebuat di Supabase), tapi belum ada sesi login
-    // karena "Confirm email" nyala - user harus klik link konfirmasi di email
-    // dulu sebelum bisa login. Ini BUKAN kegagalan.
-    object RegisteredCheckEmail : AuthUiState()
     data class Banned(val reason: String?, val until: String?) : AuthUiState()
     data class Error(val message: String) : AuthUiState()
 }
@@ -59,17 +55,10 @@ class AuthViewModel(
             _uiState.value = AuthUiState.Loading
             try {
                 val res = supabaseRepository.signUp(email, pass, username)
-                when {
-                    // Confirm email OFF (atau kasus lain yg langsung kasih sesi) -> langsung masuk
-                    res.access_token != null && res.user != null -> checkUserProfileAndBan(res.user.id)
-                    // Confirm email ON -> user KEBUAT tapi belum ada sesi, ini BERHASIL,
-                    // bukan gagal. Bedain dari kegagalan asli pakai friendlyError == null.
-                    res.user != null && res.friendlyError == null -> {
-                        _uiState.value = AuthUiState.RegisteredCheckEmail
-                    }
-                    else -> {
-                        _uiState.value = AuthUiState.Error(res.friendlyError ?: "Gagal pendaftaran akun baru")
-                    }
+                if (res.access_token != null && res.user != null) {
+                    checkUserProfileAndBan(res.user.id)
+                } else {
+                    _uiState.value = AuthUiState.Error(res.friendlyError ?: "Gagal pendaftaran akun baru")
                 }
             } catch (e: Exception) {
                 _uiState.value = AuthUiState.Error(e.message ?: "Terjadi kesalahan jaringan")
