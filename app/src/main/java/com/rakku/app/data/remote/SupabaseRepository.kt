@@ -48,6 +48,29 @@ class SupabaseRepository(
             .addHeader("Prefer", "return=representation")
     }
 
+    // EXP: manggil RPC "award_exp_once" (sudah ada di database, sama seperti yang
+    // dipakai website di anime.js). eventKey harus unik per kejadian (mis.
+    // "anime_open:{slug}:{episodeSlug}") supaya EXP gak dobel kalau dipanggil
+    // berkali-kali untuk kejadian yang sama - RPC ini sendiri yang jaga idempotensi
+    // di sisi server, return true kalau baru pertama kali (EXP ditambahkan),
+    // false kalau sudah pernah (EXP tidak ditambahkan lagi).
+    suspend fun awardExp(eventKey: String, amount: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = moshi.adapter(Map::class.java).toJson(
+                mapOf("p_event_key" to eventKey, "p_amount" to amount)
+            )
+            val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/award_exp_once")
+                .post(bodyJson.toRequestBody(jsonMediaType))
+                .build()
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                response.body?.string()?.trim() == "true"
+            } else false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     // AUTH
     suspend fun signUp(email: String, password: String, username: String): AuthResponse = withContext(Dispatchers.IO) {
         val bodyJson = moshi.adapter(Map::class.java).toJson(

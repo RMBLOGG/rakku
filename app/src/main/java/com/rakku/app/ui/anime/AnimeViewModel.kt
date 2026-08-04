@@ -59,12 +59,60 @@ sealed class AnimePlayerUiState {
 // sankavollerei.web.id karena sumber datanya udah full pindah ke animeinweb.
 private const val DEFAULT_REFERER = "https://animeinweb.com/"
 
+// Sistem EXP nonton anime - SAMA PERSIS kayak di website (anime.js):
+// +10 EXP sekali pas buka episode, +2 EXP tiap 1 menit nonton (maksimal 10 menit
+// per sesi buka episode, biar gak bisa di-farm dengan buka tab lama-lama).
+private const val EXP_PER_EPISODE_OPEN = 10
+private const val EXP_PER_MINUTE = 2
+private const val EXP_MAX_MINUTES_PER_SESSION = 10
+
 class AnimeViewModel(
     private val rakkuApiRepository: RakkuApiRepository,
     private val supabaseRepository: SupabaseRepository,
     val sessionManager: SessionManager,
     private val appContext: Context
 ) : ViewModel() {
+
+    // Dipantau UI buat nampilin toast "+X EXP" pas berhasil dapet EXP baru.
+    // Di-set null lagi sama UI setelah toast-nya ditampilkan.
+    private val _expToast = MutableStateFlow<Int?>(null)
+    val expToast: StateFlow<Int?> = _expToast
+
+    private var expTimerJob: kotlinx.coroutines.Job? = null
+
+    fun consumeExpToast() {
+        _expToast.value = null
+    }
+
+    private fun awardExpAndNotify(eventKey: String, amount: Int) {
+        viewModelScope.launch {
+            val awarded = supabaseRepository.awardExp(eventKey, amount)
+            if (awarded) _expToast.value = amount
+        }
+    }
+
+    // Timer per-menit nonton, jalan selagi layar player kebuka (di-stop lewat
+    // stopExpTimer() pas user keluar dari layar player - lihat DisposableEffect
+    // di AnimePlayerScreen.kt). Kalau app di-minimize, coroutine ini otomatis gak
+    // jalan (di-pause sistem), jadi otomatis udah sesuai maksud "tab tidak aktif,
+    // jangan hitung" seperti behaviour di website.
+    private fun startExpTimer(animeSlug: String, episodeSlug: String) {
+        expTimerJob?.cancel()
+        expTimerJob = viewModelScope.launch {
+            var minuteCount = 0
+            while (minuteCount < EXP_MAX_MINUTES_PER_SESSION) {
+                kotlinx.coroutines.delay(60_000L)
+                val key = "anime_minute:$animeSlug:$episodeSlug:$minuteCount"
+                minuteCount++
+                awardExpAndNotify(key, EXP_PER_MINUTE)
+            }
+        }
+    }
+
+    fun stopExpTimer() {
+        expTimerJob?.cancel()
+        expTimerJob = null
+    }
 
     private val _listState = MutableStateFlow<AnimeListUiState>(AnimeListUiState.Loading)
     val listState: StateFlow<AnimeListUiState> = _listState
@@ -273,6 +321,12 @@ class AnimeViewModel(
                     activeSource = source,
                     comments = comments
                 )
+
+                // EXP: +10 sekali pas buka episode ini, lalu mulai hitung per-menit
+                // nonton (+2 EXP/menit, maks 10 menit). eventKey unik per anime+episode
+                // biar RPC award_exp_once nolak dobel kalau episode ini dibuka lagi.
+                awardExpAndNotify("anime_open:$animeSlug:$episodeSlug", EXP_PER_EPISODE_OPEN)
+                startExpTimer(animeSlug, episodeSlug)
             } catch (e: Exception) {
                 _playerState.value = AnimePlayerUiState.Error(e.message ?: "Gagal memuat player episode")
             }
@@ -330,5 +384,10 @@ class AnimeViewModel(
             val success = supabaseRepository.reportComment(commentId, category, description)
             onResult(success)
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopExpTimer()
     }
 }

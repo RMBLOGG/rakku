@@ -1,5 +1,7 @@
 package com.rakku.app.ui.anime
 
+import android.widget.Toast
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +39,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,6 +78,8 @@ fun AnimePlayerScreen(
     val playerState by viewModel.playerState.collectAsState()
     val currentUserId = viewModel.sessionManager.getUserId()
     val userProfile by viewModel.sessionManager.currentUserProfile.collectAsState()
+    val expToastAmount by viewModel.expToast.collectAsState()
+    val context = LocalContext.current
 
     var commentInput by remember { mutableStateOf("") }
 
@@ -83,6 +89,20 @@ fun AnimePlayerScreen(
 
     LaunchedEffect(animeSlug, episodeSlug) {
         viewModel.loadEpisodePlayer(animeSlug, episodeSlug)
+    }
+
+    // Timer EXP per-menit cuma boleh jalan selagi layar ini kebuka - begitu user
+    // keluar (back/navigasi lain), timernya WAJIB di-stop, kalau enggak EXP bakal
+    // terus nambah di background padahal user udah gak nonton.
+    DisposableEffect(Unit) {
+        onDispose { viewModel.stopExpTimer() }
+    }
+
+    LaunchedEffect(expToastAmount) {
+        if (expToastAmount != null) {
+            Toast.makeText(context, "+$expToastAmount EXP", Toast.LENGTH_SHORT).show()
+            viewModel.consumeExpToast()
+        }
     }
 
     // Report Comment Dialog
