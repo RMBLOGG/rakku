@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -63,6 +64,11 @@ import java.net.URLEncoder
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // WAJIB dipanggil SEBELUM super.onCreate() - ini yang bikin sistem tau
+        // aktivitas ini punya splash screen yang perlu ditampilkan dulu (tema
+        // Theme.Rakku.Splash di manifest otomatis di-switch balik ke tema normal
+        // setelah ini, lewat "postSplashScreenTheme" yang udah didefinisikan).
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 

@@ -396,15 +396,30 @@ class SupabaseRepository(
         if (response.isSuccessful) {
             val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, GlobalChatMessage::class.java)
             val list = moshi.adapter<List<GlobalChatMessage>>(type).fromJson(response.body?.string() ?: "") ?: emptyList()
-            // PENTING: tabel global_chat_messages SUDAH punya kolom username/avatar_url/role
+            // PENTING: tabel global_chat_messages SUDAH punya kolom username/role
             // sendiri (diisi otomatis oleh trigger DB pas insert, sama seperti di website -
             // lihat chat.js yang cuma .select("*") tanpa join). Jangan ditimpa lagi dengan
             // hasil lookup manual ke tabel profiles, karena kalau lookup itu gagal/kosong
             // (mis. RLS profiles membatasi baca profil user lain), semua username malah
             // ke-reset jadi fallback "User" walau data aslinya sudah benar dari response ini.
-            list.reversed().onEach { msg ->
+            val reversed = list.reversed().onEach { msg ->
                 if (msg.username.isNullOrBlank()) msg.username = "User"
             }
+            // avatar_url TIDAK didenormalisasi di tabel ini (website chat.js sendiri
+            // gak pernah pakai/nampilin avatar di chat), jadi kolomnya nyaris pasti
+            // selalu kosong. Supaya foto profil tetap muncul di chat, ambil live dari
+            // get_public_profiles RPC (yang sama dipakai buat komentar episode) buat
+            // pengirim yang avatar_url-nya belum keisi dari response awal.
+            val missingAvatarIds = reversed.filter { it.avatar_url.isNullOrBlank() }.map { it.user_id }.distinct()
+            if (missingAvatarIds.isNotEmpty()) {
+                val profiles = fetchProfilesMap(missingAvatarIds)
+                reversed.forEach { msg ->
+                    if (msg.avatar_url.isNullOrBlank()) {
+                        msg.avatar_url = profiles[msg.user_id]?.avatar_url
+                    }
+                }
+            }
+            reversed
         } else emptyList()
     }
 
