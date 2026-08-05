@@ -85,6 +85,8 @@ private fun refererFor(videoUrl: String): String {
 @Composable
 fun VideoPlayer(
     source: VideoSource?,
+    isFullscreen: Boolean = false,
+    onFullscreenToggle: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (source == null) {
@@ -103,7 +105,7 @@ fun VideoPlayer(
     if (source.isEmbed) {
         EmbedWebPlayer(source.url, modifier)
     } else {
-        NativePlayerView(source.url, source.headers, modifier)
+        NativePlayerView(source.url, source.headers, isFullscreen, onFullscreenToggle, modifier)
     }
 }
 
@@ -112,6 +114,8 @@ fun VideoPlayer(
 private fun NativePlayerView(
     sourceUrl: String,
     headers: Map<String, String>,
+    isFullscreen: Boolean,
+    onFullscreenToggle: (Boolean) -> Unit,
     modifier: Modifier
 ) {
     val context = LocalContext.current
@@ -152,10 +156,11 @@ private fun NativePlayerView(
     }
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(16f / 9f)
-            .background(Color.Black)
+        modifier = if (isFullscreen) {
+            modifier.fillMaxSize().background(Color.Black)
+        } else {
+            modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black)
+        }
     ) {
         AndroidView(
             factory = { ctx ->
@@ -168,10 +173,22 @@ private fun NativePlayerView(
                 // gak pernah nongol - blank hitam terus walau player-nya jalan.
                 // Fix: paksa PlayerView pakai TextureView (surface_type di XML),
                 // yang berupa View biasa dan komposit normal di Compose.
-                LayoutInflater.from(ctx)
+                val playerView = LayoutInflater.from(ctx)
                     .inflate(com.rakku.app.R.layout.view_native_player, null) as PlayerView
+                // Tombol fullscreen bawaan Media3 PlayerView (ikon di pojok kanan
+                // bawah controller) - munculnya OTOMATIS begitu listener ini di-set.
+                // Klik tombolnya cuma minta ganti state via callback ini, PlayerView
+                // sendiri gak ngurus rotasi layar/immersive mode - itu semua diatur
+                // dari AnimePlayerScreen.kt (yang punya akses ke Activity).
+                playerView.setFullscreenButtonClickListener { requestedFullscreen ->
+                    onFullscreenToggle(requestedFullscreen)
+                }
+                playerView
             },
-            update = { view -> view.player = player },
+            update = { view ->
+                view.player = player
+                view.setFullscreenButtonState(isFullscreen)
+            },
             modifier = Modifier.fillMaxSize()
         )
     }

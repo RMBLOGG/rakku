@@ -99,6 +99,13 @@ fun ProfileScreen(
     val bookmarks by viewModel.bookmarks.collectAsState()
     val history by viewModel.history.collectAsState()
 
+    // Refresh data profil (EXP/level/coin) tiap layar ini kebuka - biar kalau ada
+    // perubahan dari layar lain (mis. abis dapet EXP nonton anime), langsung
+    // kelihatan update di sini tanpa perlu restart app.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.refreshProfile()
+    }
+
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showTopupDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }

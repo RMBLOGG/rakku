@@ -87,7 +87,19 @@ class AnimeViewModel(
     private fun awardExpAndNotify(eventKey: String, amount: Int) {
         viewModelScope.launch {
             val awarded = supabaseRepository.awardExp(eventKey, amount)
-            if (awarded) _expToast.value = amount
+            if (awarded) {
+                _expToast.value = amount
+                // Cache profil di SessionManager (dipakai ProfileScreen, dll) gak
+                // otomatis nge-refresh sendiri pas EXP nambah di database - harus
+                // di-fetch ulang manual di sini, kalau enggak angka EXP di layar
+                // Profil bakal keliatan "gak nambah" walau di database sebenernya
+                // udah bertambah.
+                val userId = sessionManager.getUserId()
+                if (userId != null) {
+                    val freshProfile = supabaseRepository.fetchUserProfile(userId)
+                    if (freshProfile != null) sessionManager.updateProfile(freshProfile)
+                }
+            }
         }
     }
 

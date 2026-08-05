@@ -105,6 +105,44 @@ fun AnimePlayerScreen(
         }
     }
 
+    // ===== FULLSCREEN (ala YouTube) =====
+    var isFullscreen by remember { mutableStateOf(false) }
+    val activity = remember(context) { context.findActivity() }
+
+    // Tombol back HP: kalau lagi fullscreen, keluar dari fullscreen dulu (balik ke
+    // mode normal), BUKAN langsung keluar dari layar player. Sama kayak behaviour
+    // YouTube.
+    androidx.activity.compose.BackHandler(enabled = isFullscreen) {
+        isFullscreen = false
+    }
+
+    DisposableEffect(isFullscreen) {
+        if (activity != null) {
+            val window = activity.window
+            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            if (isFullscreen) {
+                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior =
+                    androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        }
+        onDispose {
+            // Safety net: kalau layar ini ditinggalkan (navigasi lain) SELAGI masih
+            // dalam mode fullscreen, pastikan orientasi & status bar balik normal -
+            // kalau enggak, layar lain di app ikut kebawa landscape/fullscreen.
+            if (activity != null && isFullscreen) {
+                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                val window = activity.window
+                androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                    .show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
     // Report Comment Dialog
     if (reportCommentTarget != null) {
         AlertDialog(
@@ -172,23 +210,26 @@ fun AnimePlayerScreen(
             .fillMaxSize()
             .background(DarkBackground)
     ) {
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(DarkSurface)
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)
+        // Header - disembunyiin pas fullscreen biar video bener-bener full-screen
+        // kayak YouTube, gak ada elemen UI lain yang nutupin.
+        if (!isFullscreen) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DarkSurface)
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)
+                }
+                Text(
+                    text = "Streaming Episode",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
             }
-            Text(
-                text = "Streaming Episode",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
         }
 
         when (val state = playerState) {
@@ -203,12 +244,26 @@ fun AnimePlayerScreen(
                 }
             }
             is AnimePlayerUiState.Success -> {
+                if (isFullscreen) {
+                    // Mode fullscreen: cuma video, gak ada elemen lain sama sekali.
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        VideoPlayer(
+                            source = state.activeSource,
+                            isFullscreen = true,
+                            onFullscreenToggle = { isFullscreen = it }
+                        )
+                    }
+                } else {
                 Column(modifier = Modifier.fillMaxSize()) {
                     // Video Player Component - source null berarti masih resolve
                     // (VideoExtractor lagi coba dapetin link mp4/m3u8 langsung).
                     // Kalau berhasil -> ExoPlayer native. Kalau host gak dikenal
                     // -> fallback WebView (isEmbed = true), sama kayak sebelumnya.
-                    VideoPlayer(source = state.activeSource)
+                    VideoPlayer(
+                        source = state.activeSource,
+                        isFullscreen = false,
+                        onFullscreenToggle = { isFullscreen = it }
+                    )
 
                     LazyColumn(
                         modifier = Modifier
@@ -391,6 +446,7 @@ fun AnimePlayerScreen(
                             Text("Silakan login untuk menulis komentar", color = TextSecondary, fontSize = 12.sp)
                         }
                     }
+                }
                 }
             }
         }
