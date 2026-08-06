@@ -304,7 +304,15 @@ fun MainAppScreen(
                         navController.navigate("manga_detail/$encoded")
                     },
                     onOpenHistory = { navController.navigate("history") },
-                    onOpenBookmarks = { navController.navigate("bookmarks") }
+                    onOpenBookmarks = { navController.navigate("bookmarks") },
+                    onOpenAdminPanel = { navController.navigate("admin_panel") }
+                )
+            }
+
+            composable("admin_panel") {
+                com.rakku.app.ui.profile.AdminPanelScreen(
+                    viewModel = profileViewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
 

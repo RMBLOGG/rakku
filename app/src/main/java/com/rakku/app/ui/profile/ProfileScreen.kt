@@ -91,7 +91,8 @@ fun ProfileScreen(
     onSelectAnimeDetail: (String) -> Unit,
     onSelectMangaDetail: (String) -> Unit,
     onOpenHistory: () -> Unit,
-    onOpenBookmarks: () -> Unit
+    onOpenBookmarks: () -> Unit,
+    onOpenAdminPanel: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -109,7 +110,6 @@ fun ProfileScreen(
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showTopupDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
-    var showAdminPanelDialog by remember { mutableStateOf(false) }
 
     if (userProfile == null) {
         // Guest view
@@ -366,13 +366,7 @@ fun ProfileScreen(
         )
     }
 
-    // Admin Panel Screen Dialog
-    if (showAdminPanelDialog) {
-        AdminPanelDialog(
-            viewModel = viewModel,
-            onDismiss = { showAdminPanelDialog = false }
-        )
-    }
+    // (Admin Panel sekarang halaman terpisah, lihat onOpenAdminPanel di bawah)
 
     // Main Profile Screen View
     Column(
@@ -528,7 +522,7 @@ fun ProfileScreen(
                 tint = AdminRed,
                 onClick = {
                     viewModel.loadAdminData()
-                    showAdminPanelDialog = true
+                    onOpenAdminPanel()
                 }
             )
         }
@@ -576,263 +570,4 @@ fun ProfileMenuItem(
 }
 
 @Composable
-fun AdminPanelDialog(
-    viewModel: ProfileViewModel,
-    onDismiss: () -> Unit
-) {
-    val adminState by viewModel.adminState.collectAsState()
-    var selectedTab by remember { mutableStateOf(0) } // 0: User Mgmt, 1: Ban, 2: Announcements, 3: Reports
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Admin & Mod Control Panel", color = AdminRed, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(modifier = Modifier.height(450.dp)) {
-                // Tab Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Text(
-                        "Users",
-                        fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selectedTab == 0) CyanAccent else TextSecondary,
-                        modifier = Modifier.clickable { selectedTab = 0 }
-                    )
-                    Text(
-                        "Pengumuman",
-                        fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selectedTab == 1) CyanAccent else TextSecondary,
-                        modifier = Modifier.clickable { selectedTab = 1 }
-                    )
-                    Text(
-                        "Laporan",
-                        fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selectedTab == 2) CyanAccent else TextSecondary,
-                        modifier = Modifier.clickable { selectedTab = 2 }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                when (val state = adminState) {
-                    is AdminUiState.Idle -> {}
-                    is AdminUiState.Loading -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = CyanAccent)
-                        }
-                    }
-                    is AdminUiState.Error -> {
-                        Text(state.message, color = Color.Red)
-                    }
-                    is AdminUiState.Success -> {
-                        if (selectedTab == 0) {
-                            // User Management
-                            var searchUser by remember { mutableStateOf("") }
-                            OutlinedTextField(
-                                value = searchUser,
-                                onValueChange = { searchUser = it },
-                                placeholder = { Text("Cari User ID / Nama...", fontSize = 11.sp, color = TextSecondary) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            val filteredUsers = state.users.filter {
-                                it.username?.contains(searchUser, true) == true || it.id.contains(searchUser, true)
-                            }
-                            LazyColumn {
-                                items(filteredUsers) { user ->
-                                    var showBanDialogForUser by remember { mutableStateOf(false) }
-                                    var showAddCoinDialogForUser by remember { mutableStateOf(false) }
-
-                                    if (showBanDialogForUser) {
-                                        var banReason by remember { mutableStateOf("") }
-                                        var durationHours by remember { mutableStateOf<Int?>(1) } // 1, 5, 7, 720, null
-
-                                        AlertDialog(
-                                            onDismissRequest = { showBanDialogForUser = false },
-                                            title = { Text("Ban User ${user.username}", color = Color.Red) },
-                                            text = {
-                                                Column {
-                                                    OutlinedTextField(
-                                                        value = banReason,
-                                                        onValueChange = { banReason = it },
-                                                        label = { Text("Alasan Banned") }
-                                                    )
-                                                    Spacer(modifier = Modifier.height(8.dp))
-                                                    Text("Durasi Banned:")
-                                                    listOf(
-                                                        1 to "1 Jam",
-                                                        5 to "5 Jam",
-                                                        7 to "7 Jam",
-                                                        720 to "30 Hari",
-                                                        null to "Permanen"
-                                                    ).forEach { (hrs, label) ->
-                                                        Row(
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            modifier = Modifier.clickable { durationHours = hrs }
-                                                        ) {
-                                                            RadioButton(selected = durationHours == hrs, onClick = { durationHours = hrs })
-                                                            Text(label, fontSize = 12.sp)
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            confirmButton = {
-                                                Button(
-                                                    onClick = {
-                                                        viewModel.adminBanUser(user.id, banReason, durationHours) {
-                                                            showBanDialogForUser = false
-                                                        }
-                                                    },
-                                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                                                ) {
-                                                    Text("Banned Now")
-                                                }
-                                            },
-                                            dismissButton = {
-                                                TextButton(onClick = { showBanDialogForUser = false }) { Text("Batal") }
-                                            }
-                                        )
-                                    }
-
-                                    if (showAddCoinDialogForUser) {
-                                        var coinAmt by remember { mutableStateOf("100") }
-                                        AlertDialog(
-                                            onDismissRequest = { showAddCoinDialogForUser = false },
-                                            title = { Text("Tambah Koin ke ${user.username}") },
-                                            text = {
-                                                OutlinedTextField(
-                                                    value = coinAmt,
-                                                    onValueChange = { coinAmt = it },
-                                                    label = { Text("Jumlah Koin") }
-                                                )
-                                            },
-                                            confirmButton = {
-                                                Button(onClick = {
-                                                    val amt = coinAmt.toIntOrNull() ?: 0
-                                                    viewModel.adminAddCoin(user.id, amt) {
-                                                        showAddCoinDialogForUser = false
-                                                    }
-                                                }) { Text("Tambah") }
-                                            },
-                                            dismissButton = {
-                                                TextButton(onClick = { showAddCoinDialogForUser = false }) { Text("Batal") }
-                                            }
-                                        )
-                                    }
-
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
-                                    ) {
-                                        Column(modifier = Modifier.padding(8.dp)) {
-                                            Text("${user.username} (${user.role})", fontWeight = FontWeight.Bold, color = TextPrimary)
-                                            Text("ID: ${user.id.take(8)}... | Koin: ${user.rakku_coin ?: 0}", fontSize = 11.sp, color = TextSecondary)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Button(
-                                                    onClick = { showAddCoinDialogForUser = true },
-                                                    colors = ButtonDefaults.buttonColors(containerColor = CyanAccent),
-                                                    modifier = Modifier.height(30.dp)
-                                                ) {
-                                                    Text("+ Koin", fontSize = 10.sp, color = Color.Black)
-                                                }
-                                                if (user.is_banned == true) {
-                                                    Button(
-                                                        onClick = { viewModel.adminUnbanUser(user.id) {} },
-                                                        colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
-                                                        modifier = Modifier.height(30.dp)
-                                                    ) {
-                                                        Text("Unban", fontSize = 10.sp)
-                                                    }
-                                                } else {
-                                                    Button(
-                                                        onClick = { showBanDialogForUser = true },
-                                                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                                                        modifier = Modifier.height(30.dp)
-                                                    ) {
-                                                        Text("Ban", fontSize = 10.sp)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } else if (selectedTab == 1) {
-                            // Announcements Management
-                            var newTitle by remember { mutableStateOf("") }
-                            var newContent by remember { mutableStateOf("") }
-                            OutlinedTextField(value = newTitle, onValueChange = { newTitle = it }, label = { Text("Judul Pengumuman") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(value = newContent, onValueChange = { newContent = it }, label = { Text("Isi Pengumuman") }, modifier = Modifier.fillMaxWidth())
-                            Button(
-                                onClick = {
-                                    if (newTitle.isNotBlank() && newContent.isNotBlank()) {
-                                        viewModel.createAnnouncement(newTitle, newContent, true) {
-                                            newTitle = ""
-                                            newContent = ""
-                                        }
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = VioletPrimary),
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                            ) { Text("Buat Pengumuman Baru") }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            LazyColumn {
-                                items(state.announcements) { ann ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(8.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(ann.title, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                                Text(ann.content, fontSize = 11.sp, color = TextSecondary)
-                                            }
-                                            Button(onClick = { ann.id?.let { viewModel.toggleAnnouncement(it, !(ann.is_active ?: true)) } }) {
-                                                Text(if (ann.is_active == true) "Aktif" else "Mati", fontSize = 10.sp)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            // Reports List
-                            LazyColumn {
-                                items(state.commentReports) { r ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
-                                    ) {
-                                        Column(modifier = Modifier.padding(8.dp)) {
-                                            Text("Laporan Komentar [${r.category}]", fontWeight = FontWeight.Bold, color = Color.Red)
-                                            Text("Ket: ${r.description ?: "-"}", fontSize = 11.sp, color = TextPrimary)
-                                            Button(
-                                                onClick = { r.comment_id?.let { viewModel.deleteReportedComment(it) } },
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                                            ) {
-                                                Text("Hapus Komentar Ini", fontSize = 10.sp)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Tutup", color = TextSecondary) }
-        },
-        containerColor = DarkSurface
-    )
-}
