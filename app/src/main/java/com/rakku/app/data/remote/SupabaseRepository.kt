@@ -259,6 +259,7 @@ class SupabaseRepository(
             sessionManager.getUserId()?.let { fetchUserProfile(it) }
             BuyBorderResult.Success
         } else {
+            android.util.Log.e("RakkuBorder", "buyBorder gagal (HTTP ${response.code}): $bodyStr")
             when {
                 bodyStr.contains("insufficient_coin") -> BuyBorderResult.InsufficientCoin
                 bodyStr.contains("already_owned") -> BuyBorderResult.AlreadyOwned
@@ -271,16 +272,27 @@ class SupabaseRepository(
     // Pasang border (kirim borderId) atau lepas border (kirim null) di foto
     // profil. RPC "equip_border" memvalidasi kepemilikan sebelum ngeset
     // profiles.active_border_url.
+    //
+    // PENTING: pakai .serializeNulls() di sini. Moshi secara default MEMBUANG
+    // field yang nilainya null dari JSON output (mis. {"p_border_id":null}
+    // akan jadi cuma "{}"). Kalau ini kepasang buat kirim border_id=null
+    // (proses "lepas" border), badan request yang nyampe ke server jadi
+    // kosong -> parameter wajib "p_border_id" gak kekirim -> RPC error ->
+    // proses lepas border gagal diam-diam. serializeNulls() memastikan
+    // {"p_border_id":null} beneran terkirim apa adanya.
     suspend fun equipBorder(borderId: Long?): Boolean = withContext(Dispatchers.IO) {
         val map = mapOf("p_border_id" to borderId)
         val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/equip_border")
-            .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
+            .post(moshi.adapter(Map::class.java).serializeNulls().toJson(map).toRequestBody(jsonMediaType))
             .build()
         val response = client.newCall(request).execute()
         if (response.isSuccessful) {
             sessionManager.getUserId()?.let { fetchUserProfile(it) }
             true
-        } else false
+        } else {
+            response.body?.string()?.let { android.util.Log.e("RakkuBorder", "equipBorder gagal: $it") }
+            false
+        }
     }
 
     // ADMIN: kelola border (upload gambar manual dari panel admin)
