@@ -163,6 +163,15 @@ fun ChatScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = TextSecondary
                                     )
+                                    if (msg.is_unlimited == true) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "\u221E",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = CyanAccent
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.width(6.dp))
                                     RoleBadge(role = msg.role)
                                 }

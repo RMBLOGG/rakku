@@ -246,9 +246,35 @@ class ProfileViewModel(
         }
     }
 
-    fun adminSetRole(targetId: String, newRole: String) {
+    fun adminSetRole(targetId: String, newRole: String, onResult: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            if (supabaseRepository.adminSetRole(targetId, newRole)) loadAdminData()
+            val success = supabaseRepository.adminSetRole(targetId, newRole)
+            if (success) loadAdminData()
+            onResult(success)
+        }
+    }
+
+    fun adminSetLevel(targetId: String, newLevel: Int, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val success = supabaseRepository.adminSetLevel(targetId, newLevel)
+            if (success) loadAdminData()
+            onResult(success)
+        }
+    }
+
+    fun adminAddExp(targetId: String, amount: Int, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val success = supabaseRepository.adminAddExp(targetId, amount)
+            if (success) loadAdminData()
+            onResult(success)
+        }
+    }
+
+    fun adminSetUnlimited(targetId: String, enabled: Boolean, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val success = supabaseRepository.adminSetUnlimited(targetId, enabled)
+            if (success) loadAdminData()
+            onResult(success)
         }
     }
 
@@ -260,13 +286,13 @@ class ProfileViewModel(
         }
     }
 
-    fun toggleAnnouncement(id: Long, active: Boolean) {
+    fun toggleAnnouncement(id: String, active: Boolean) {
         viewModelScope.launch {
             if (supabaseRepository.toggleAnnouncement(id, active)) loadAdminData()
         }
     }
 
-    fun updateFeedbackStatus(id: Long, status: String) {
+    fun updateFeedbackStatus(id: String, status: String) {
         viewModelScope.launch {
             if (supabaseRepository.updateFeedbackStatus(id, status)) loadAdminData()
         }

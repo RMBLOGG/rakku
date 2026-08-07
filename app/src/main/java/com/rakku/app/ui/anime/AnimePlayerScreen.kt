@@ -98,6 +98,20 @@ fun AnimePlayerScreen(
         onDispose { viewModel.stopExpTimer() }
     }
 
+    // Layar HP jangan sampe auto-mati/dim gara-gara timeout walau user gak
+    // nyentuh layar sama sekali (kan lagi nonton doang, bukan ngetik).
+    // FLAG_KEEP_SCREEN_ON ini dipasang begitu halaman player kebuka, dan WAJIB
+    // dicopot lagi pas keluar dari halaman ini (di dalam onDispose) - kalau
+    // lupa dicopot, flag-nya bakal nempel terus ke Activity dan bikin layar
+    // gak pernah mati lagi walau udah pindah ke halaman lain / keluar app.
+    val activity = context as? android.app.Activity
+    DisposableEffect(Unit) {
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     LaunchedEffect(expToastAmount) {
         if (expToastAmount != null) {
             Toast.makeText(context, "+$expToastAmount EXP", Toast.LENGTH_SHORT).show()

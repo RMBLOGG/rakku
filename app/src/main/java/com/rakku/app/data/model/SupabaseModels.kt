@@ -85,6 +85,10 @@ data class GlobalChatMessage(
     var username: String? = null,
     var avatar_url: String? = null,
     var role: String? = null,
+    // Kolom ini SUDAH ADA dari awal di tabel global_chat_messages (diisi
+    // otomatis pas insert, sama kayak username/role - lihat website chat.js).
+    // Cuma belum pernah dibaca di app Android.
+    var is_unlimited: Boolean? = false,
     // Border yang lagi dipasang si pengirim pesan ini. Kolom ini gak ada di
     // tabel global_chat_messages, diisi belakangan dari get_public_profiles
     // - lihat getGlobalChatMessages() di SupabaseRepository.
@@ -131,7 +135,8 @@ data class CommentReport(
 
 @JsonClass(generateAdapter = true)
 data class FeedbackReport(
-    val id: Long? = null,
+    // Sama kayak Announcement.id - ini UUID (teks) di database, bukan angka.
+    val id: String? = null,
     val user_id: String = "",
     val type: String = "saran", // 'saran' | 'laporan'
     val message: String = "",
@@ -161,7 +166,10 @@ data class UserBorder(
 
 @JsonClass(generateAdapter = true)
 data class Announcement(
-    val id: Long? = null,
+    // PENTING: id pengumuman di database itu tipe UUID (teks), BUKAN angka.
+    // Kalau dipaksa jadi Long, parsing JSON-nya bakal error "Expected a long
+    // but was <uuid>" begitu ada data pengumuman yang kebaca.
+    val id: String? = null,
     val title: String = "",
     val content: String = "",
     val is_active: Boolean = true,

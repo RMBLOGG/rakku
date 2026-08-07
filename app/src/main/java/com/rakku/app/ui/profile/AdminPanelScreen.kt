@@ -7,6 +7,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,6 +77,7 @@ fun AdminPanelScreen(
 ) {
     val adminState by viewModel.adminState.collectAsState()
     var selectedTab by remember { mutableStateOf(0) } // 0: Users, 1: Pengumuman, 2: Laporan, 3: Border
+    val currentUserId = viewModel.sessionManager.getUserId()
 
     Scaffold(
         containerColor = DarkBackground,
@@ -164,6 +167,7 @@ fun AdminPanelScreen(
                             items(filteredUsers) { user ->
                                 var showBanDialogForUser by remember { mutableStateOf(false) }
                                 var showAddCoinDialogForUser by remember { mutableStateOf(false) }
+                                var showManageDialogForUser by remember { mutableStateOf(false) }
 
                                 if (showBanDialogForUser) {
                                     var banReason by remember { mutableStateOf("") }
@@ -242,6 +246,125 @@ fun AdminPanelScreen(
                                     )
                                 }
 
+                                if (showManageDialogForUser) {
+                                    val isSelf = user.id == currentUserId
+                                    var selectedRole by remember { mutableStateOf(user.role ?: "user") }
+                                    var levelInput by remember { mutableStateOf((user.level ?: 1).toString()) }
+                                    var expInput by remember { mutableStateOf("") }
+
+                                    AlertDialog(
+                                        onDismissRequest = { showManageDialogForUser = false },
+                                        title = { Text("Kelola ${user.username}") },
+                                        text = {
+                                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                                // Ubah Role
+                                                Text("Ubah Role", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
+                                                listOf("user", "moderator", "admin").forEach { roleOpt ->
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.clickable(enabled = !isSelf) { selectedRole = roleOpt }
+                                                    ) {
+                                                        RadioButton(
+                                                            selected = selectedRole == roleOpt,
+                                                            onClick = { selectedRole = roleOpt },
+                                                            enabled = !isSelf
+                                                        )
+                                                        Text(roleOpt, fontSize = 12.sp)
+                                                    }
+                                                }
+                                                if (isSelf) {
+                                                    Text("Gak bisa ganti role diri sendiri.", fontSize = 10.sp, color = TextSecondary)
+                                                }
+                                                Button(
+                                                    onClick = {
+                                                        viewModel.adminSetRole(user.id, selectedRole)
+                                                        showManageDialogForUser = false
+                                                    },
+                                                    enabled = !isSelf && selectedRole != user.role,
+                                                    modifier = Modifier.height(32.dp)
+                                                ) { Text("Simpan Role", fontSize = 11.sp) }
+
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Text("Ubah Level", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
+                                                OutlinedTextField(
+                                                    value = levelInput,
+                                                    onValueChange = { levelInput = it.filter { c -> c.isDigit() } },
+                                                    singleLine = true,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    Button(
+                                                        onClick = {
+                                                            val lvl = levelInput.toIntOrNull()
+                                                            if (lvl != null && lvl >= 1) {
+                                                                viewModel.adminSetLevel(user.id, lvl)
+                                                                showManageDialogForUser = false
+                                                            }
+                                                        },
+                                                        modifier = Modifier.height(32.dp)
+                                                    ) { Text("Simpan Level", fontSize = 11.sp) }
+                                                    Button(
+                                                        onClick = {
+                                                            viewModel.adminSetLevel(user.id, 1)
+                                                            showManageDialogForUser = false
+                                                        },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                                        modifier = Modifier.height(32.dp)
+                                                    ) { Text("Reset ke 1", fontSize = 11.sp) }
+                                                }
+
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Text("Tambah EXP", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
+                                                OutlinedTextField(
+                                                    value = expInput,
+                                                    onValueChange = { expInput = it },
+                                                    placeholder = { Text("Jumlah EXP (bisa negatif)", fontSize = 11.sp) },
+                                                    singleLine = true,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                                Button(
+                                                    onClick = {
+                                                        val amt = expInput.toIntOrNull()
+                                                        if (amt != null && amt != 0) {
+                                                            viewModel.adminAddExp(user.id, amt)
+                                                            showManageDialogForUser = false
+                                                        }
+                                                    },
+                                                    modifier = Modifier.height(32.dp)
+                                                ) { Text("Tambahkan", fontSize = 11.sp) }
+
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Text("Status Unlimited \u221E", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextPrimary)
+                                                Text(
+                                                    "Kalau aktif, ikon \u221E muncul di sebelah nama user ini.",
+                                                    fontSize = 10.sp,
+                                                    color = TextSecondary
+                                                )
+                                                Button(
+                                                    onClick = {
+                                                        viewModel.adminSetUnlimited(user.id, !(user.has_unlimited ?: false))
+                                                        showManageDialogForUser = false
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = if (user.has_unlimited == true) Color.Red else CyanAccent
+                                                    ),
+                                                    modifier = Modifier.height(32.dp)
+                                                ) {
+                                                    Text(
+                                                        if (user.has_unlimited == true) "Matikan Unlimited" else "Aktifkan Unlimited",
+                                                        fontSize = 11.sp,
+                                                        color = if (user.has_unlimited == true) Color.White else Color.Black
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        confirmButton = {},
+                                        dismissButton = {
+                                            TextButton(onClick = { showManageDialogForUser = false }) { Text("Tutup") }
+                                        }
+                                    )
+                                }
+
                                 Card(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
@@ -251,6 +374,13 @@ fun AdminPanelScreen(
                                         Text("ID: ${user.id.take(8)}... | Koin: ${user.rakku_coin ?: 0}", fontSize = 11.sp, color = TextSecondary)
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Button(
+                                                onClick = { showManageDialogForUser = true },
+                                                colors = ButtonDefaults.buttonColors(containerColor = VioletPrimary),
+                                                modifier = Modifier.height(30.dp)
+                                            ) {
+                                                Text("Kelola", fontSize = 10.sp)
+                                            }
                                             Button(
                                                 onClick = { showAddCoinDialogForUser = true },
                                                 colors = ButtonDefaults.buttonColors(containerColor = CyanAccent),

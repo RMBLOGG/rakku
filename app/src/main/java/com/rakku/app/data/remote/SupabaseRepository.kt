@@ -416,7 +416,7 @@ class SupabaseRepository(
         client.newCall(request).execute().isSuccessful
     }
 
-    suspend fun toggleAnnouncement(id: Long, active: Boolean): Boolean = withContext(Dispatchers.IO) {
+    suspend fun toggleAnnouncement(id: String, active: Boolean): Boolean = withContext(Dispatchers.IO) {
         val map = mapOf("is_active" to active)
         val request = newRequestBuilder("$SUPABASE_URL/rest/v1/announcements?id=eq.$id")
             .patch(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
@@ -678,7 +678,7 @@ class SupabaseRepository(
         } else emptyList()
     }
 
-    suspend fun updateFeedbackStatus(id: Long, newStatus: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun updateFeedbackStatus(id: String, newStatus: String): Boolean = withContext(Dispatchers.IO) {
         val map = mapOf("status" to newStatus)
         val request = newRequestBuilder("$SUPABASE_URL/rest/v1/feedback_reports?id=eq.$id")
             .patch(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
