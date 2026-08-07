@@ -24,7 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Image as ImageIcon
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -398,7 +398,7 @@ private fun BorderManagementTab(viewModel: ProfileViewModel) {
                                 contentScale = ContentScale.Fit
                             )
                         } else {
-                            Icon(ImageIcon, contentDescription = "Pilih gambar", tint = TextSecondary, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Filled.Image, contentDescription = "Pilih gambar", tint = TextSecondary, modifier = Modifier.size(24.dp))
                         }
                     }
                     Spacer(modifier = Modifier.width(10.dp))
