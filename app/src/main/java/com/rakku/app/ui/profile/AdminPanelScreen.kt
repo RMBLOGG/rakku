@@ -433,6 +433,28 @@ fun AdminPanelScreen(
 
                         LazyColumn(modifier = Modifier.weight(1f)) {
                             items(state.announcements) { ann ->
+                                var showDeleteConfirm by remember { mutableStateOf(false) }
+
+                                if (showDeleteConfirm) {
+                                    AlertDialog(
+                                        onDismissRequest = { showDeleteConfirm = false },
+                                        title = { Text("Hapus Pengumuman?") },
+                                        text = { Text("\"${ann.title}\" akan dihapus permanen.") },
+                                        confirmButton = {
+                                            Button(
+                                                onClick = {
+                                                    ann.id?.let { viewModel.deleteAnnouncement(it) }
+                                                    showDeleteConfirm = false
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                                            ) { Text("Hapus") }
+                                        },
+                                        dismissButton = {
+                                            TextButton(onClick = { showDeleteConfirm = false }) { Text("Batal") }
+                                        }
+                                    )
+                                }
+
                                 Card(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
@@ -446,8 +468,19 @@ fun AdminPanelScreen(
                                             Text(ann.title, fontWeight = FontWeight.Bold, color = TextPrimary)
                                             Text(ann.content, fontSize = 11.sp, color = TextSecondary)
                                         }
-                                        Button(onClick = { ann.id?.let { viewModel.toggleAnnouncement(it, !(ann.is_active ?: true)) } }) {
+                                        Button(
+                                            onClick = { ann.id?.let { viewModel.toggleAnnouncement(it, !(ann.is_active ?: true)) } },
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
                                             Text(if (ann.is_active == true) "Aktif" else "Mati", fontSize = 10.sp)
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Button(
+                                            onClick = { showDeleteConfirm = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                            modifier = Modifier.height(30.dp)
+                                        ) {
+                                            Text("Hapus", fontSize = 10.sp)
                                         }
                                     }
                                 }
@@ -456,6 +489,49 @@ fun AdminPanelScreen(
                     } else {
                         // Reports List
                         LazyColumn(modifier = Modifier.weight(1f)) {
+                            item {
+                                Text("Saran & Laporan Pengguna", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                            items(state.feedbackList) { f ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
+                                ) {
+                                    Column(modifier = Modifier.padding(8.dp)) {
+                                        Text(
+                                            "[${f.type}] ${f.username ?: "User"} - ${f.status ?: "open"}",
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (f.status == "closed") TextSecondary else CyanAccent,
+                                            fontSize = 12.sp
+                                        )
+                                        Text(f.message, fontSize = 11.sp, color = TextPrimary)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Row {
+                                            if (f.status != "in_progress") {
+                                                Button(
+                                                    onClick = { f.id?.let { viewModel.updateFeedbackStatus(it, "in_progress") } },
+                                                    modifier = Modifier.height(28.dp)
+                                                ) { Text("Diproses", fontSize = 10.sp) }
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                            }
+                                            if (f.status != "closed") {
+                                                Button(
+                                                    onClick = { f.id?.let { viewModel.updateFeedbackStatus(it, "closed") } },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                                    modifier = Modifier.height(28.dp)
+                                                ) { Text("Selesai", fontSize = 10.sp) }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            item {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Laporan Komentar", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
                             items(state.commentReports) { r ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),

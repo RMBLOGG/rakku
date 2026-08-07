@@ -292,6 +292,12 @@ class ProfileViewModel(
         }
     }
 
+    fun deleteAnnouncement(id: String) {
+        viewModelScope.launch {
+            if (supabaseRepository.deleteAnnouncement(id)) loadAdminData()
+        }
+    }
+
     fun updateFeedbackStatus(id: String, status: String) {
         viewModelScope.launch {
             if (supabaseRepository.updateFeedbackStatus(id, status)) loadAdminData()

@@ -424,6 +424,13 @@ class SupabaseRepository(
         client.newCall(request).execute().isSuccessful
     }
 
+    suspend fun deleteAnnouncement(id: String): Boolean = withContext(Dispatchers.IO) {
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/announcements?id=eq.$id")
+            .delete()
+            .build()
+        client.newCall(request).execute().isSuccessful
+    }
+
     // BOOKMARKS & HISTORY
     suspend fun getBookmarks(userId: String): List<BookmarkItem> = withContext(Dispatchers.IO) {
         val request = newRequestBuilder("$SUPABASE_URL/rest/v1/bookmarks?user_id=eq.$userId&order=created_at.desc")
