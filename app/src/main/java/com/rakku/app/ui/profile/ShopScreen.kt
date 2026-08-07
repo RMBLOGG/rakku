@@ -69,7 +69,8 @@ import com.rakku.app.ui.theme.VioletPrimary
 @Composable
 fun ShopScreen(
     viewModel: ProfileViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    showOnlyOwned: Boolean = false
 ) {
     val context = LocalContext.current
     val shopState by viewModel.shopState.collectAsState()
@@ -83,7 +84,7 @@ fun ShopScreen(
         containerColor = DarkBackground,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Toko Border", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+                title = { Text(if (showOnlyOwned) "Border Saya" else "Toko Border", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)
@@ -127,7 +128,8 @@ fun ShopScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Beli border buat mempercantik foto profil kamu. Border bisa dipasang/lepas kapan saja setelah dibeli.",
+                if (showOnlyOwned) "Border yang sudah kamu beli. Pasang/lepas kapan saja."
+                else "Beli border buat mempercantik foto profil kamu. Border bisa dipasang/lepas kapan saja setelah dibeli.",
                 fontSize = 11.sp,
                 color = TextSecondary,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -145,12 +147,20 @@ fun ShopScreen(
                     }
                 }
                 is ShopUiState.Success -> {
-                    if (state.borders.isEmpty()) {
+                    val visibleBorders = if (showOnlyOwned) {
+                        state.borders.filter { state.ownedIds.contains(it.id) }
+                    } else state.borders
+
+                    if (visibleBorders.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Storefront, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(48.dp))
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("Belum ada border yang dijual", color = TextSecondary, fontSize = 13.sp)
+                                Text(
+                                    if (showOnlyOwned) "Kamu belum punya border. Yuk beli di Toko Border!" else "Belum ada border yang dijual",
+                                    color = TextSecondary,
+                                    fontSize = 13.sp
+                                )
                             }
                         }
                     } else {
@@ -159,7 +169,7 @@ fun ShopScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            items(state.borders) { border ->
+                            items(visibleBorders) { border ->
                                 val borderId = border.id
                                 val owned = state.ownedIds.contains(borderId)
                                 val equipped = userProfile?.active_border_url != null &&

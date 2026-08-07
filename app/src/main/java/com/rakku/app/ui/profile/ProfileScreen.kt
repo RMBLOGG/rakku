@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Feedback
@@ -94,7 +95,8 @@ fun ProfileScreen(
     onOpenHistory: () -> Unit,
     onOpenBookmarks: () -> Unit,
     onOpenAdminPanel: () -> Unit,
-    onOpenShop: () -> Unit
+    onOpenShop: () -> Unit,
+    onOpenMyBorders: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -527,6 +529,7 @@ fun ProfileScreen(
 
         // Profile Menu Options
         ProfileMenuItem(icon = Icons.Default.Storefront, label = "Toko Border", onClick = onOpenShop)
+        ProfileMenuItem(icon = Icons.Default.CheckCircle, label = "Border Saya", onClick = onOpenMyBorders)
         ProfileMenuItem(icon = Icons.Default.Bookmark, label = "Bookmark Saya", onClick = onOpenBookmarks)
         ProfileMenuItem(icon = Icons.Default.History, label = "Riwayat Tontonan", onClick = onOpenHistory)
         ProfileMenuItem(icon = Icons.Default.Feedback, label = "Saran & Laporan", onClick = { showFeedbackDialog = true })

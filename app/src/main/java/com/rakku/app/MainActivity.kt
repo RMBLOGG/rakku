@@ -306,7 +306,8 @@ fun MainAppScreen(
                     onOpenHistory = { navController.navigate("history") },
                     onOpenBookmarks = { navController.navigate("bookmarks") },
                     onOpenAdminPanel = { navController.navigate("admin_panel") },
-                    onOpenShop = { navController.navigate("shop") }
+                    onOpenShop = { navController.navigate("shop") },
+                    onOpenMyBorders = { navController.navigate("my_borders") }
                 )
             }
 
@@ -314,6 +315,14 @@ fun MainAppScreen(
                 com.rakku.app.ui.profile.ShopScreen(
                     viewModel = profileViewModel,
                     onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("my_borders") {
+                com.rakku.app.ui.profile.ShopScreen(
+                    viewModel = profileViewModel,
+                    onBack = { navController.popBackStack() },
+                    showOnlyOwned = true
                 )
             }
 
