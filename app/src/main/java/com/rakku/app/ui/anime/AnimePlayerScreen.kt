@@ -104,7 +104,7 @@ fun AnimePlayerScreen(
     // dicopot lagi pas keluar dari halaman ini (di dalam onDispose) - kalau
     // lupa dicopot, flag-nya bakal nempel terus ke Activity dan bikin layar
     // gak pernah mati lagi walau udah pindah ke halaman lain / keluar app.
-    val activity = context as? android.app.Activity
+    val activity = remember(context) { context.findActivity() }
     DisposableEffect(Unit) {
         activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
@@ -121,7 +121,6 @@ fun AnimePlayerScreen(
 
     // ===== FULLSCREEN (ala YouTube) =====
     var isFullscreen by remember { mutableStateOf(false) }
-    val activity = remember(context) { context.findActivity() }
 
     // Tombol back HP: kalau lagi fullscreen, keluar dari fullscreen dulu (balik ke
     // mode normal), BUKAN langsung keluar dari layar player. Sama kayak behaviour

@@ -29,7 +29,7 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState
 
-    private var dismissedAnnouncementIds = mutableSetOf<Long>()
+    private var dismissedAnnouncementIds = mutableSetOf<String>()
 
     init {
         loadHomeData()
@@ -59,7 +59,7 @@ class HomeViewModel(
         }
     }
 
-    fun dismissAnnouncement(id: Long) {
+    fun dismissAnnouncement(id: String) {
         dismissedAnnouncementIds.add(id)
         val current = _uiState.value
         if (current is HomeUiState.Success) {
