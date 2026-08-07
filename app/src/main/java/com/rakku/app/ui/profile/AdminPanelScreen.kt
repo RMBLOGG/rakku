@@ -472,11 +472,23 @@ private fun BorderManagementTab(viewModel: ProfileViewModel) {
                     AlertDialog(
                         onDismissRequest = { showDeleteConfirm = false },
                         title = { Text("Hapus Border?") },
-                        text = { Text("\"${border.name}\" akan dihapus permanen dan tidak bisa dibeli/dipasang lagi.") },
+                        text = { Text("\"${border.name}\" akan dihapus permanen. Kalau border ini sudah pernah dibeli user, penghapusan akan diblokir - nonaktifkan aja lewat tombol Aktif/Mati kalau begitu.") },
                         confirmButton = {
                             Button(
                                 onClick = {
-                                    border.id?.let { viewModel.adminDeleteBorder(it) }
+                                    border.id?.let {
+                                        viewModel.adminDeleteBorder(it) { error ->
+                                            when (error) {
+                                                null -> Toast.makeText(context, "Border dihapus", Toast.LENGTH_SHORT).show()
+                                                "border_has_owners" -> Toast.makeText(
+                                                    context,
+                                                    "Gak bisa dihapus, border ini sudah dibeli user. Nonaktifkan aja (tombol Aktif/Mati) biar berhenti dijual.",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                                else -> Toast.makeText(context, "Gagal menghapus border", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
                                     showDeleteConfirm = false
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)

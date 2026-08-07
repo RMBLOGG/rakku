@@ -248,19 +248,22 @@ set search_path = public
 as $$
 declare
   v_role text;
-  v_image_url text;
+  v_owned_count integer;
 begin
   select role into v_role from public.profiles where id = auth.uid();
   if v_role is null or v_role not in ('admin', 'moderator') then
     raise exception 'not_authorized';
   end if;
 
-  select image_url into v_image_url from public.borders where id = p_border_id;
-
-  -- Lepas border ini dari semua user yang lagi masang, biar gak ada
-  -- active_border_url yang jadi broken link setelah border-nya dihapus.
-  if v_image_url is not null then
-    update public.profiles set active_border_url = null where active_border_url = v_image_url;
+  -- Border yang sudah dibeli minimal 1 user TIDAK BOLEH dihapus permanen -
+  -- itu barang yang udah dibayar pakai Rakku Coin. Kalau dihapus, baris
+  -- kepemilikannya bakal ikut kehapus (foreign key cascade) dan user yang
+  -- udah bayar jadi kehilangan border yang mereka beli. Solusinya: admin
+  -- nonaktifkan aja (admin_set_border_active) supaya berhenti dijual ke
+  -- user baru, tapi user lama yang udah beli tetap bisa pakai.
+  select count(*) into v_owned_count from public.user_borders where border_id = p_border_id;
+  if v_owned_count > 0 then
+    raise exception 'border_has_owners';
   end if;
 
   delete from public.borders where id = p_border_id;

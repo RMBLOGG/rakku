@@ -214,9 +214,11 @@ class ProfileViewModel(
         }
     }
 
-    fun adminDeleteBorder(borderId: Long) {
+    fun adminDeleteBorder(borderId: Long, onResult: (String?) -> Unit) {
         viewModelScope.launch {
-            if (supabaseRepository.adminDeleteBorder(borderId)) loadAdminBorders()
+            val error = supabaseRepository.adminDeleteBorder(borderId)
+            if (error == null) loadAdminBorders()
+            onResult(error)
         }
     }
 

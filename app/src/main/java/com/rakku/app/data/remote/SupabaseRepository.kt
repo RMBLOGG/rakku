@@ -365,12 +365,21 @@ class SupabaseRepository(
         client.newCall(request).execute().isSuccessful
     }
 
-    suspend fun adminDeleteBorder(borderId: Long): Boolean = withContext(Dispatchers.IO) {
+    // Return: null kalau berhasil dihapus, atau pesan error kalau gagal
+    // (mis. "border_has_owners" karena udah ada user yang beli - lihat
+    // admin_delete_border di borders_migration.sql).
+    suspend fun adminDeleteBorder(borderId: Long): String? = withContext(Dispatchers.IO) {
         val map = mapOf("p_border_id" to borderId)
         val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/admin_delete_border")
             .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
             .build()
-        client.newCall(request).execute().isSuccessful
+        val response = client.newCall(request).execute()
+        if (response.isSuccessful) {
+            null
+        } else {
+            val bodyStr = response.body?.string() ?: ""
+            if (bodyStr.contains("border_has_owners")) "border_has_owners" else "error"
+        }
     }
 
     // ANNOUNCEMENTS
