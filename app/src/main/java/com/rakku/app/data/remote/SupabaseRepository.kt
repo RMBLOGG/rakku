@@ -602,13 +602,18 @@ class SupabaseRepository(
             // selalu kosong. Supaya foto profil tetap muncul di chat, ambil live dari
             // get_public_profiles RPC (yang sama dipakai buat komentar episode) buat
             // pengirim yang avatar_url-nya belum keisi dari response awal.
-            val missingAvatarIds = reversed.filter { it.avatar_url.isNullOrBlank() }.map { it.user_id }.distinct()
-            if (missingAvatarIds.isNotEmpty()) {
-                val profiles = fetchProfilesMap(missingAvatarIds)
+            //
+            // active_border_url juga diambil dari sini buat SEMUA pengirim (bukan cuma
+            // yang avatar-nya kosong), karena kolom itu emang gak pernah ada sama sekali
+            // di tabel global_chat_messages - satu-satunya sumbernya ya get_public_profiles.
+            val allUserIds = reversed.map { it.user_id }.distinct()
+            if (allUserIds.isNotEmpty()) {
+                val profiles = fetchProfilesMap(allUserIds)
                 reversed.forEach { msg ->
                     if (msg.avatar_url.isNullOrBlank()) {
                         msg.avatar_url = profiles[msg.user_id]?.avatar_url
                     }
+                    msg.active_border_url = profiles[msg.user_id]?.active_border_url
                 }
             }
             reversed

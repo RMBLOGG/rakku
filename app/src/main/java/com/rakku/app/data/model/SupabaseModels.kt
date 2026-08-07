@@ -84,7 +84,11 @@ data class GlobalChatMessage(
     val created_at: String? = null,
     var username: String? = null,
     var avatar_url: String? = null,
-    var role: String? = null
+    var role: String? = null,
+    // Border yang lagi dipasang si pengirim pesan ini. Kolom ini gak ada di
+    // tabel global_chat_messages, diisi belakangan dari get_public_profiles
+    // - lihat getGlobalChatMessages() di SupabaseRepository.
+    var active_border_url: String? = null
 )
 
 @JsonClass(generateAdapter = true)

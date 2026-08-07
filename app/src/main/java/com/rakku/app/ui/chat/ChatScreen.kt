@@ -128,15 +128,28 @@ fun ChatScreen(
                             horizontalArrangement = if (isSelf) Arrangement.End else Arrangement.Start
                         ) {
                             if (!isSelf) {
-                                AsyncImage(
-                                    model = msg.avatar_url,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(DarkSurfaceVariant),
-                                    contentScale = ContentScale.Crop
-                                )
+                                Box(
+                                    modifier = Modifier.size(36.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AsyncImage(
+                                        model = msg.avatar_url,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(DarkSurfaceVariant),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    if (!msg.active_border_url.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = msg.active_border_url,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(36.dp),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    }
+                                }
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
 

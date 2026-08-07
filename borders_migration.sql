@@ -129,6 +129,16 @@ begin
     raise exception 'insufficient_coin';
   end if;
 
+  -- PENTING: tabel profiles punya trigger proteksi (trg_protect_profile_columns)
+  -- yang otomatis membatalkan perubahan ke kolom sensitif (termasuk rakku_coin)
+  -- kecuali session variable ini di-set 'true' dulu. Tanpa baris ini, UPDATE di
+  -- bawah akan "berhasil" (gak error) tapi nilainya otomatis dibalikin lagi ke
+  -- nilai lama oleh trigger - itu sebabnya koin sempat gak kepotong walau
+  -- pembelian border sendiri tercatat. set_config dengan is_local=true di sini
+  -- artinya cuma berlaku buat durasi transaksi function ini, otomatis kereset
+  -- setelahnya - jadi gak membuka celah keamanan yang bocor ke query lain.
+  perform set_config('app.allow_admin_update', 'true', true);
+
   update public.profiles
   set rakku_coin = rakku_coin - v_price
   where id = v_user_id;

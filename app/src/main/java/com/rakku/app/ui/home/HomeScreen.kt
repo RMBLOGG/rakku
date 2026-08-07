@@ -96,27 +96,46 @@ fun HomeScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(50))
-                            .border(2.dp, CyanAccent, RoundedCornerShape(50))
-                            .background(DarkSurfaceVariant),
+                        modifier = Modifier.size(52.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (userProfile?.avatar_url != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(50))
+                                .then(
+                                    if (userProfile?.active_border_url.isNullOrBlank()) {
+                                        Modifier.border(2.dp, CyanAccent, RoundedCornerShape(50))
+                                    } else Modifier
+                                )
+                                .background(DarkSurfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (userProfile?.avatar_url != null) {
+                                AsyncImage(
+                                    model = userProfile.avatar_url,
+                                    contentDescription = "Foto profil",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(50))
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Foto profil",
+                                    tint = CyanAccent
+                                )
+                            }
+                        }
+                        // Border/frame yang lagi dipasang user (kalau ada) digambar
+                        // nempel di atas avatar, sama kayak di halaman Profil.
+                        if (!userProfile?.active_border_url.isNullOrBlank()) {
                             AsyncImage(
-                                model = userProfile.avatar_url,
-                                contentDescription = "Foto profil",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(50))
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Foto profil",
-                                tint = CyanAccent
+                                model = userProfile?.active_border_url,
+                                contentDescription = null,
+                                modifier = Modifier.size(52.dp),
+                                contentScale = ContentScale.Fit
                             )
                         }
                     }
