@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -92,7 +93,8 @@ fun ProfileScreen(
     onSelectMangaDetail: (String) -> Unit,
     onOpenHistory: () -> Unit,
     onOpenBookmarks: () -> Unit,
-    onOpenAdminPanel: () -> Unit
+    onOpenAdminPanel: () -> Unit,
+    onOpenShop: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -388,15 +390,31 @@ fun ProfileScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(contentAlignment = Alignment.BottomEnd) {
-                    AsyncImage(
-                        model = profile.avatar_url,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(DarkSurfaceVariant),
-                        contentScale = ContentScale.Crop
-                    )
+                    // Avatar + border (frame) yang lagi dipasang user, kalau ada.
+                    // Border digambar lebih besar dari avatar & nempel di belakangnya
+                    // supaya efeknya kayak bingkai melingkari foto profil.
+                    Box(
+                        modifier = Modifier.size(96.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = profile.avatar_url,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(DarkSurfaceVariant),
+                            contentScale = ContentScale.Crop
+                        )
+                        if (!profile.active_border_url.isNullOrBlank()) {
+                            AsyncImage(
+                                model = profile.active_border_url,
+                                contentDescription = null,
+                                modifier = Modifier.size(96.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = { showEditProfileDialog = true },
                         modifier = Modifier
@@ -508,6 +526,7 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         // Profile Menu Options
+        ProfileMenuItem(icon = Icons.Default.Storefront, label = "Toko Border", onClick = onOpenShop)
         ProfileMenuItem(icon = Icons.Default.Bookmark, label = "Bookmark Saya", onClick = onOpenBookmarks)
         ProfileMenuItem(icon = Icons.Default.History, label = "Riwayat Tontonan", onClick = onOpenHistory)
         ProfileMenuItem(icon = Icons.Default.Feedback, label = "Saran & Laporan", onClick = { showFeedbackDialog = true })

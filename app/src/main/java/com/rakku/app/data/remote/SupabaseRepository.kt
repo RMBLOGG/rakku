@@ -11,16 +11,20 @@ import com.rakku.app.data.model.EpisodeComment
 import com.rakku.app.data.model.FeedbackReport
 import com.rakku.app.data.model.GlobalChatMessage
 import com.rakku.app.data.model.HistoryItem
+import com.rakku.app.data.model.ProfileBorder
 import com.rakku.app.data.model.TopupRequest
+import com.rakku.app.data.model.UserBorder
 import com.rakku.app.data.model.UserProfile
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.io.InputStream
 
 class SupabaseRepository(
@@ -29,6 +33,22 @@ class SupabaseRepository(
     companion object {
         const val SUPABASE_URL = "https://lqixsabpmyflguisblrb.supabase.co"
         const val SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxaXhzYWJwbXlmbGd1aXNibHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjI4NDcsImV4cCI6MjA5ODgzODg0N30.QVdxWkMguIbJ0T5uqomBKwN7PBAYeb_xNjRfh67W1-E"
+
+        // ================= CLOUDINARY (upload gambar border) =================
+        // GANTI dua nilai di bawah ini dengan punya kamu sendiri:
+        // 1. CLOUD_NAME: buka Cloudinary Dashboard -> tercantum di pojok kiri atas
+        //    (contoh: "dxyz1234a").
+        // 2. UPLOAD_PRESET: Cloudinary Dashboard -> Settings (ikon gerigi) -> tab
+        //    "Upload" -> scroll ke "Upload presets" -> "Add upload preset" ->
+        //    Signing Mode WAJIB diset ke "Unsigned" -> Save -> copy nama presetnya.
+        //    WAJIB unsigned karena upload dilakukan langsung dari app Android,
+        //    dan API Secret Cloudinary TIDAK BOLEH ditaruh di client (bisa dicuri
+        //    dari APK). Unsigned preset aman dipakai di client karena Cloudinary
+        //    sendiri yang membatasi apa yang boleh di-upload lewatnya (bisa diatur
+        //    folder tujuan, ukuran max, format yang diizinkan, dsb di halaman
+        //    setting preset itu).
+        const val CLOUDINARY_CLOUD_NAME = "qbtrsrkv"
+        const val CLOUDINARY_UPLOAD_PRESET = "rakku-border"
     }
 
     private val client = OkHttpClient.Builder().build()
@@ -188,6 +208,157 @@ class SupabaseRepository(
             e.printStackTrace()
             null
         }
+    }
+
+    // ================= PROFILE BORDER SHOP =================
+
+    sealed class BuyBorderResult {
+        object Success : BuyBorderResult()
+        object InsufficientCoin : BuyBorderResult()
+        object AlreadyOwned : BuyBorderResult()
+        object NotFound : BuyBorderResult()
+        data class Error(val message: String) : BuyBorderResult()
+    }
+
+    // Daftar border yang aktif dijual, buat ditampilkan di Toko Border.
+    suspend fun getActiveBorders(): List<ProfileBorder> = withContext(Dispatchers.IO) {
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/borders?is_active=eq.true&order=price_coin.asc")
+            .get().build()
+        val response = client.newCall(request).execute()
+        if (response.isSuccessful) {
+            val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, ProfileBorder::class.java)
+            moshi.adapter<List<ProfileBorder>>(type).fromJson(response.body?.string() ?: "") ?: emptyList()
+        } else emptyList()
+    }
+
+    // Border-border yang sudah dibeli/dimiliki user yang lagi login.
+    suspend fun getMyBorderIds(): List<Long> = withContext(Dispatchers.IO) {
+        val userId = sessionManager.getUserId() ?: return@withContext emptyList()
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/user_borders?user_id=eq.$userId&select=id,user_id,border_id,purchased_at")
+            .get().build()
+        val response = client.newCall(request).execute()
+        if (response.isSuccessful) {
+            val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, UserBorder::class.java)
+            val list = moshi.adapter<List<UserBorder>>(type).fromJson(response.body?.string() ?: "") ?: emptyList()
+            list.map { it.border_id }
+        } else emptyList()
+    }
+
+    // Beli border pakai Rakku Coin. Logic pengecekan saldo & kepemilikan
+    // dilakukan di RPC "buy_border" (SECURITY DEFINER) di sisi database supaya
+    // gak bisa dicurangi dari client (mis. beli walau koin kurang). Lihat
+    // borders_migration.sql.
+    suspend fun buyBorder(borderId: Long): BuyBorderResult = withContext(Dispatchers.IO) {
+        val map = mapOf("p_border_id" to borderId)
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/buy_border")
+            .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
+            .build()
+        val response = client.newCall(request).execute()
+        val bodyStr = response.body?.string() ?: ""
+        if (response.isSuccessful) {
+            sessionManager.getUserId()?.let { fetchUserProfile(it) }
+            BuyBorderResult.Success
+        } else {
+            when {
+                bodyStr.contains("insufficient_coin") -> BuyBorderResult.InsufficientCoin
+                bodyStr.contains("already_owned") -> BuyBorderResult.AlreadyOwned
+                bodyStr.contains("border_not_found") -> BuyBorderResult.NotFound
+                else -> BuyBorderResult.Error(bodyStr)
+            }
+        }
+    }
+
+    // Pasang border (kirim borderId) atau lepas border (kirim null) di foto
+    // profil. RPC "equip_border" memvalidasi kepemilikan sebelum ngeset
+    // profiles.active_border_url.
+    suspend fun equipBorder(borderId: Long?): Boolean = withContext(Dispatchers.IO) {
+        val map = mapOf("p_border_id" to borderId)
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/equip_border")
+            .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
+            .build()
+        val response = client.newCall(request).execute()
+        if (response.isSuccessful) {
+            sessionManager.getUserId()?.let { fetchUserProfile(it) }
+            true
+        } else false
+    }
+
+    // ADMIN: kelola border (upload gambar manual dari panel admin)
+    suspend fun getAllBordersAdmin(): List<ProfileBorder> = withContext(Dispatchers.IO) {
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/borders?order=created_at.desc")
+            .get().build()
+        val response = client.newCall(request).execute()
+        if (response.isSuccessful) {
+            val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, ProfileBorder::class.java)
+            moshi.adapter<List<ProfileBorder>>(type).fromJson(response.body?.string() ?: "") ?: emptyList()
+        } else emptyList()
+    }
+
+    // Upload file gambar border ke Cloudinary (bukan Supabase Storage) lewat
+    // unsigned upload preset, jadi gambar border gak ikut numpuk kuota storage
+    // Supabase. Data border (nama/harga/status) tetap disimpan di tabel
+    // "borders" Supabase seperti biasa - cuma FILE gambarnya yang dipindah
+    // hosting-nya ke Cloudinary CDN.
+    suspend fun uploadBorderImage(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+        try {
+            if (CLOUDINARY_CLOUD_NAME.startsWith("GANTI_") || CLOUDINARY_UPLOAD_PRESET.startsWith("GANTI_")) {
+                // Konstanta belum diisi - lihat komentar di companion object di atas.
+                return@withContext null
+            }
+
+            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            val bytes = inputStream?.readBytes() ?: return@withContext null
+            val fileName = "border_${System.currentTimeMillis()}.png"
+            val imageMediaType = "image/*".toMediaType()
+
+            val requestBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", fileName, bytes.toRequestBody(imageMediaType))
+                .addFormDataPart("upload_preset", CLOUDINARY_UPLOAD_PRESET)
+                .addFormDataPart("folder", "rakku_borders")
+                .build()
+
+            val request = Request.Builder()
+                .url("https://api.cloudinary.com/v1_1/$CLOUDINARY_CLOUD_NAME/image/upload")
+                .post(requestBody)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val bodyStr = response.body?.string() ?: ""
+            if (response.isSuccessful) {
+                val json = JSONObject(bodyStr)
+                if (json.has("secure_url")) json.getString("secure_url") else null
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun adminCreateBorder(name: String, imageUrl: String, priceCoin: Int): Boolean = withContext(Dispatchers.IO) {
+        val map = mapOf("p_name" to name, "p_image_url" to imageUrl, "p_price_coin" to priceCoin)
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/admin_create_border")
+            .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
+            .build()
+        client.newCall(request).execute().isSuccessful
+    }
+
+    suspend fun adminSetBorderActive(borderId: Long, active: Boolean): Boolean = withContext(Dispatchers.IO) {
+        val map = mapOf("p_border_id" to borderId, "p_active" to active)
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/admin_set_border_active")
+            .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
+            .build()
+        client.newCall(request).execute().isSuccessful
+    }
+
+    suspend fun adminDeleteBorder(borderId: Long): Boolean = withContext(Dispatchers.IO) {
+        val map = mapOf("p_border_id" to borderId)
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/admin_delete_border")
+            .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
+            .build()
+        client.newCall(request).execute().isSuccessful
     }
 
     // ANNOUNCEMENTS

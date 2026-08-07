@@ -10,6 +10,7 @@ import com.rakku.app.data.model.BookmarkItem
 import com.rakku.app.data.model.CommentReport
 import com.rakku.app.data.model.FeedbackReport
 import com.rakku.app.data.model.HistoryItem
+import com.rakku.app.data.model.ProfileBorder
 import com.rakku.app.data.model.UserProfile
 import com.rakku.app.data.remote.SupabaseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,12 @@ sealed class AdminUiState {
     data class Error(val message: String) : AdminUiState()
 }
 
+sealed class ShopUiState {
+    object Loading : ShopUiState()
+    data class Success(val borders: List<ProfileBorder>, val ownedIds: List<Long>) : ShopUiState()
+    data class Error(val message: String) : ShopUiState()
+}
+
 class ProfileViewModel(
     val sessionManager: SessionManager,
     private val supabaseRepository: SupabaseRepository
@@ -43,6 +50,13 @@ class ProfileViewModel(
 
     private val _adminState = MutableStateFlow<AdminUiState>(AdminUiState.Idle)
     val adminState: StateFlow<AdminUiState> = _adminState
+
+    private val _shopState = MutableStateFlow<ShopUiState>(ShopUiState.Loading)
+    val shopState: StateFlow<ShopUiState> = _shopState
+
+    // Daftar border (termasuk yang nonaktif) khusus buat panel admin.
+    private val _adminBorders = MutableStateFlow<List<ProfileBorder>>(emptyList())
+    val adminBorders: StateFlow<List<ProfileBorder>> = _adminBorders
 
     init {
         refreshProfile()
@@ -122,6 +136,36 @@ class ProfileViewModel(
         }
     }
 
+    // ================= BORDER SHOP (USER) =================
+
+    fun loadShop() {
+        viewModelScope.launch {
+            _shopState.value = ShopUiState.Loading
+            try {
+                val borders = supabaseRepository.getActiveBorders()
+                val owned = supabaseRepository.getMyBorderIds()
+                _shopState.value = ShopUiState.Success(borders, owned)
+            } catch (e: Exception) {
+                _shopState.value = ShopUiState.Error(e.message ?: "Gagal memuat toko border")
+            }
+        }
+    }
+
+    fun buyBorder(borderId: Long, onResult: (SupabaseRepository.BuyBorderResult) -> Unit) {
+        viewModelScope.launch {
+            val result = supabaseRepository.buyBorder(borderId)
+            if (result is SupabaseRepository.BuyBorderResult.Success) loadShop()
+            onResult(result)
+        }
+    }
+
+    fun equipBorder(borderId: Long?, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = supabaseRepository.equipBorder(borderId)
+            onResult(success)
+        }
+    }
+
     // ADMIN FUNCTIONS
     fun loadAdminData() {
         viewModelScope.launch {
@@ -141,6 +185,38 @@ class ProfileViewModel(
             } catch (e: Exception) {
                 _adminState.value = AdminUiState.Error(e.message ?: "Gagal memuat data admin")
             }
+        }
+    }
+
+    // ADMIN: KELOLA BORDER
+    fun loadAdminBorders() {
+        viewModelScope.launch {
+            _adminBorders.value = supabaseRepository.getAllBordersAdmin()
+        }
+    }
+
+    fun adminUploadBorder(context: Context, imageUri: Uri, name: String, priceCoin: Int, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val imageUrl = supabaseRepository.uploadBorderImage(context, imageUri)
+            if (imageUrl == null) {
+                onResult(false, "Upload gambar ke Cloudinary gagal. Cek apakah CLOUDINARY_CLOUD_NAME & CLOUDINARY_UPLOAD_PRESET sudah diisi di SupabaseRepository.kt")
+                return@launch
+            }
+            val success = supabaseRepository.adminCreateBorder(name, imageUrl, priceCoin)
+            if (success) loadAdminBorders()
+            onResult(success, if (success) null else "Gagal menyimpan data border ke database")
+        }
+    }
+
+    fun adminSetBorderActive(borderId: Long, active: Boolean) {
+        viewModelScope.launch {
+            if (supabaseRepository.adminSetBorderActive(borderId, active)) loadAdminBorders()
+        }
+    }
+
+    fun adminDeleteBorder(borderId: Long) {
+        viewModelScope.launch {
+            if (supabaseRepository.adminDeleteBorder(borderId)) loadAdminBorders()
         }
     }
 

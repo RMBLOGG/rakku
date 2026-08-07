@@ -305,7 +305,15 @@ fun MainAppScreen(
                     },
                     onOpenHistory = { navController.navigate("history") },
                     onOpenBookmarks = { navController.navigate("bookmarks") },
-                    onOpenAdminPanel = { navController.navigate("admin_panel") }
+                    onOpenAdminPanel = { navController.navigate("admin_panel") },
+                    onOpenShop = { navController.navigate("shop") }
+                )
+            }
+
+            composable("shop") {
+                com.rakku.app.ui.profile.ShopScreen(
+                    viewModel = profileViewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
 

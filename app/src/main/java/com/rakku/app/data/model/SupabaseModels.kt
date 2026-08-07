@@ -15,6 +15,11 @@ data class UserProfile(
     val has_unlimited: Boolean? = false,
     val avatar_url: String? = null,
     val rakku_coin: Int? = 0,
+    // URL gambar border/frame yang lagi dipasang user di foto profilnya.
+    // Didenormalisasi langsung ke kolom profiles biar gampang ditampilkan
+    // (gak perlu join manual ke tabel borders tiap render avatar). Diisi
+    // lewat RPC equip_border(), bukan diedit langsung dari client.
+    val active_border_url: String? = null,
     val created_at: String? = null
 )
 
@@ -129,6 +134,25 @@ data class FeedbackReport(
     val status: String? = "open", // 'open' | 'in_progress' | 'closed'
     val created_at: String? = null,
     var username: String? = null
+)
+
+// PROFILE BORDER SHOP
+@JsonClass(generateAdapter = true)
+data class ProfileBorder(
+    val id: Long? = null,
+    val name: String = "",
+    val image_url: String = "",
+    val price_coin: Int = 0,
+    val is_active: Boolean = true,
+    val created_at: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class UserBorder(
+    val id: Long? = null,
+    val user_id: String = "",
+    val border_id: Long = 0,
+    val purchased_at: String? = null
 )
 
 @JsonClass(generateAdapter = true)
