@@ -371,7 +371,7 @@ fun AdminPanelScreen(
                                 ) {
                                     Column(modifier = Modifier.padding(8.dp)) {
                                         Text("${user.username} (${user.role})", fontWeight = FontWeight.Bold, color = TextPrimary)
-                                        Text("ID: ${user.id.take(8)}... | Koin: ${user.rakku_coin ?: 0}", fontSize = 11.sp, color = TextSecondary)
+                                        Text("#${user.user_number ?: "-"} | ${user.id.take(8)}... | Koin: ${user.rakku_coin ?: 0}", fontSize = 11.sp, color = TextSecondary)
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                             Button(

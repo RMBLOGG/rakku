@@ -441,9 +441,8 @@ fun ProfileScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RoleBadge(role = profile.role)
                     Spacer(modifier = Modifier.width(8.dp))
-                    val truncatedUuid = profile.id.take(8) + "..."
                     Text(
-                        text = "ID: $truncatedUuid",
+                        text = "ID: #${profile.user_number ?: "-"}",
                         fontSize = 11.sp,
                         color = TextSecondary
                     )

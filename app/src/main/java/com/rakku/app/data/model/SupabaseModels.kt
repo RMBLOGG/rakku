@@ -20,7 +20,11 @@ data class UserProfile(
     // (gak perlu join manual ke tabel borders tiap render avatar). Diisi
     // lewat RPC equip_border(), bukan diedit langsung dari client.
     val active_border_url: String? = null,
-    val created_at: String? = null
+    val created_at: String? = null,
+    // Nomor urut pendaftaran akun (1, 2, 3, ...) - diisi otomatis oleh
+    // database lewat kolom identity, BUKAN oleh client. Dipakai buat
+    // ditampilkan di UI sebagai pengganti UUID yang panjang/acak.
+    val user_number: Long? = null
 )
 
 @JsonClass(generateAdapter = true)
