@@ -346,14 +346,18 @@ class AnimeViewModel(
                 val episode = rakkuApiRepository.getAnimeEpisode(episodeSlug)
                 val comments = supabaseRepository.getEpisodeComments(animeSlug, episodeSlug)
 
-                // Save Watch History
+                // Save Watch History - judul & poster diambil dari ANIME (detailState),
+                // bukan dari episode, soalnya episode.title cuma "Episode 6" doang dan
+                // gak ada info poster sama sekali. detailState udah keisi duluan karena
+                // user pasti mampir ke halaman detail anime dulu sebelum ke sini.
                 val userId = sessionManager.getUserId()
                 if (userId != null) {
+                    val animeDetail = (_detailState.value as? AnimeDetailUiState.Success)?.detail
                     supabaseRepository.saveWatchHistory(
                         userId = userId,
                         refId = animeSlug,
-                        title = episode.title ?: "Episode",
-                        thumb = null,
+                        title = animeDetail?.title ?: animeSlug,
+                        thumb = animeDetail?.thumb,
                         progressId = episodeSlug,
                         progressName = episode.title ?: "Episode"
                     )

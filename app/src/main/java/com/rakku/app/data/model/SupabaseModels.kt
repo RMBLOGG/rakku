@@ -41,6 +41,15 @@ data class AuthResponse(
     val expires_in: Long? = null,
     val refresh_token: String? = null,
     val user: AuthUser? = null,
+    // Supabase /auth/v1/signup punya 2 bentuk response beda tergantung setting
+    // "Confirm email" di project:
+    // - OFF (langsung dikasih sesi): {"access_token":..., "user": {...}}
+    // - ON (perlu klik link email dulu, kayak Rakku): objek user-nya balik
+    //   LANGSUNG di top-level, TANPA dibungkus "user" - {"id":..., "email":...}.
+    // Tanpa field id/email di sini, kasus kedua bikin authRes.user selalu null
+    // walau akun-nya sukses kebuat, jadi ke-detect "gagal" padahal berhasil.
+    val id: String? = null,
+    val email: String? = null,
     val error: String? = null,
     val error_description: String? = null,
     // Supabase Auth (GoTrue) versi terbaru balikin error pakai field ini, BUKAN

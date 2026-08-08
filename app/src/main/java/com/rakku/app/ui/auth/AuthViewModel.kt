@@ -64,7 +64,9 @@ class AuthViewModel(
                     res.access_token != null && res.user != null -> checkUserProfileAndBan(res.user.id)
                     // Confirm email ON -> user KEBUAT tapi belum ada sesi, ini BERHASIL,
                     // bukan gagal. Bedain dari kegagalan asli pakai friendlyError == null.
-                    res.user != null && res.friendlyError == null -> {
+                    // res.user != null nangkep bentuk response yang di-nest, res.id != null
+                    // nangkep bentuk response yang gak di-nest (lihat komentar di AuthResponse).
+                    (res.user != null || res.id != null) && res.friendlyError == null -> {
                         _uiState.value = AuthUiState.RegisteredCheckEmail
                     }
                     else -> {
