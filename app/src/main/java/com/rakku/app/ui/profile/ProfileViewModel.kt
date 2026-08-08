@@ -98,11 +98,11 @@ class ProfileViewModel(
         }
     }
 
-    fun clearAllHistory() {
+    fun clearAllHistory(contentType: String) {
         val userId = sessionManager.getUserId() ?: return
         viewModelScope.launch {
-            if (supabaseRepository.clearAllHistory(userId)) {
-                _history.value = emptyList()
+            if (supabaseRepository.clearAllHistory(userId, contentType)) {
+                _history.value = _history.value.filter { it.content_type != contentType }
             }
         }
     }

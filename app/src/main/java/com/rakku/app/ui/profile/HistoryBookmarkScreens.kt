@@ -61,9 +61,14 @@ fun HistoryScreen(
     onSelectAnimeDetail: (String) -> Unit,
     onSelectMangaDetail: (String) -> Unit
 ) {
-    val history by viewModel.history.collectAsState()
+    val allHistory by viewModel.history.collectAsState()
     var showClearAllConfirm by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<HistoryItem?>(null) }
+    // 0 = Anime, 1 = Manga - riwayat dipisah biar gak ketuker, sama kayak
+    // Bookmark yang juga punya dua jenis konten.
+    var selectedTab by remember { mutableStateOf(0) }
+    val contentType = if (selectedTab == 0) "anime" else "manga"
+    val history = remember(allHistory, selectedTab) { allHistory.filter { it.content_type == contentType } }
 
     Scaffold(
         containerColor = DarkBackground,
@@ -86,58 +91,76 @@ fun HistoryScreen(
             )
         }
     ) { padding ->
-        if (history.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Text("Belum ada riwayat tontonan.", color = TextSecondary)
+                Text(
+                    "Anime",
+                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                    color = if (selectedTab == 0) CyanAccent else TextSecondary,
+                    modifier = Modifier.clickable { selectedTab = 0 }
+                )
+                Text(
+                    "Manga",
+                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                    color = if (selectedTab == 1) CyanAccent else TextSecondary,
+                    modifier = Modifier.clickable { selectedTab = 1 }
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)
-            ) {
-                items(history, key = { it.id ?: it.hashCode().toLong() }) { item ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable {
-                                if (item.content_type == "manga") onSelectMangaDetail(item.ref_id)
-                                else onSelectAnimeDetail(item.ref_id)
-                            },
-                        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+
+            if (history.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        if (selectedTab == 0) "Belum ada riwayat tontonan anime." else "Belum ada riwayat baca manga.",
+                        color = TextSecondary
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)
+                ) {
+                    items(history, key = { it.id ?: it.hashCode().toLong() }) { item ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable {
+                                    if (item.content_type == "manga") onSelectMangaDetail(item.ref_id)
+                                    else onSelectAnimeDetail(item.ref_id)
+                                },
+                            colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
                         ) {
-                            AsyncImage(
-                                model = item.thumb,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
-                                contentScale = ContentScale.Crop
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(item.title, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 13.sp)
-                                Text(
-                                    if (item.content_type == "manga") "MANGA" else "ANIME",
-                                    fontSize = 10.sp,
-                                    color = VioletPrimary
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = item.thumb,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
                                 )
-                                if (!item.progress_name.isNullOrEmpty()) {
-                                    Text("Terakhir: ${item.progress_name}", fontSize = 11.sp, color = CyanAccent)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(item.title, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 13.sp)
+                                    if (!item.progress_name.isNullOrEmpty()) {
+                                        Text("Terakhir: ${item.progress_name}", fontSize = 11.sp, color = CyanAccent)
+                                    }
+                                }
+                                IconButton(onClick = { itemToDelete = item }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Hapus", tint = TextSecondary)
                                 }
                             }
-                            IconButton(onClick = { itemToDelete = item }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Hapus", tint = TextSecondary)
-                            }
                         }
-                    }
                 }
             }
+        }
         }
     }
 
@@ -164,10 +187,15 @@ fun HistoryScreen(
         AlertDialog(
             onDismissRequest = { showClearAllConfirm = false },
             title = { Text("Hapus semua riwayat?", color = TextPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text("Semua riwayat tontonan (${history.size} item) akan dihapus permanen.", color = TextSecondary) },
+            text = {
+                Text(
+                    "Semua riwayat ${if (selectedTab == 0) "tontonan anime" else "baca manga"} (${history.size} item) akan dihapus permanen.",
+                    color = TextSecondary
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.clearAllHistory()
+                    viewModel.clearAllHistory(contentType)
                     showClearAllConfirm = false
                 }) { Text("Hapus Semua", color = VioletPrimary) }
             },

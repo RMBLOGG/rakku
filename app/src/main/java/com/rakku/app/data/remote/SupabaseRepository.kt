@@ -486,8 +486,8 @@ class SupabaseRepository(
         client.newCall(request).execute().isSuccessful
     }
 
-    suspend fun clearAllHistory(userId: String): Boolean = withContext(Dispatchers.IO) {
-        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/history?user_id=eq.$userId")
+    suspend fun clearAllHistory(userId: String, contentType: String): Boolean = withContext(Dispatchers.IO) {
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/history?user_id=eq.$userId&content_type=eq.$contentType")
             .delete().build()
         client.newCall(request).execute().isSuccessful
     }
