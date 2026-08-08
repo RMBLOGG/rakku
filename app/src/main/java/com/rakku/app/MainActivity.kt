@@ -13,12 +13,16 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,7 +62,9 @@ import com.rakku.app.ui.profile.ProfileViewModel
 import com.rakku.app.ui.theme.CyanAccent
 import com.rakku.app.ui.theme.DarkSurface
 import com.rakku.app.ui.theme.RakkuTheme
+import com.rakku.app.ui.theme.TextPrimary
 import com.rakku.app.ui.theme.TextSecondary
+import com.rakku.app.ui.theme.VioletPrimary
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -246,12 +252,25 @@ fun MainAppScreen(
             composable("anime_player/{animeSlug}/{episodeSlug}") { backStackEntry ->
                 val animeSlug = backStackEntry.arguments?.getString("animeSlug") ?: ""
                 val episodeSlug = backStackEntry.arguments?.getString("episodeSlug") ?: ""
-                AnimePlayerScreen(
-                    animeSlug = animeSlug,
-                    episodeSlug = episodeSlug,
-                    viewModel = animeViewModel,
-                    onBack = { navController.popBackStack() }
-                )
+                val isLoggedIn = animeViewModel.sessionManager.getUserId() != null
+                if (!isLoggedIn) {
+                    LoginRequiredDialog(
+                        message = "Kamu harus login dulu buat nonton anime.",
+                        onLogin = {
+                            navController.navigate("login") {
+                                popUpTo("anime_player/{animeSlug}/{episodeSlug}") { inclusive = true }
+                            }
+                        },
+                        onDismiss = { navController.popBackStack() }
+                    )
+                } else {
+                    AnimePlayerScreen(
+                        animeSlug = animeSlug,
+                        episodeSlug = episodeSlug,
+                        viewModel = animeViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
 
             // TAB 3: MANGA
@@ -288,11 +307,24 @@ fun MainAppScreen(
             ) { backStackEntry ->
                 val encodedUrl = backStackEntry.arguments?.getString("chapterUrl") ?: ""
                 val decodedUrl = URLDecoder.decode(encodedUrl, "UTF-8")
-                MangaReaderScreen(
-                    chapterUrl = decodedUrl,
-                    viewModel = mangaViewModel,
-                    onBack = { navController.popBackStack() }
-                )
+                val isLoggedIn = mangaViewModel.sessionManager.getUserId() != null
+                if (!isLoggedIn) {
+                    LoginRequiredDialog(
+                        message = "Kamu harus login dulu buat baca manga.",
+                        onLogin = {
+                            navController.navigate("login") {
+                                popUpTo("manga_reader/{chapterUrl}") { inclusive = true }
+                            }
+                        },
+                        onDismiss = { navController.popBackStack() }
+                    )
+                } else {
+                    MangaReaderScreen(
+                        chapterUrl = decodedUrl,
+                        viewModel = mangaViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
 
             // TAB 4: CHAT
@@ -388,4 +420,31 @@ fun MainAppScreen(
             }
         }
     }
+}
+
+@Composable
+private fun LoginRequiredDialog(
+    message: String,
+    onLogin: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Login Diperlukan", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = { Text(message, color = TextSecondary, fontSize = 13.sp) },
+        confirmButton = {
+            Button(
+                onClick = onLogin,
+                colors = ButtonDefaults.buttonColors(containerColor = VioletPrimary)
+            ) {
+                Text("Login Sekarang")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal", color = TextSecondary)
+            }
+        },
+        containerColor = DarkSurface
+    )
 }
