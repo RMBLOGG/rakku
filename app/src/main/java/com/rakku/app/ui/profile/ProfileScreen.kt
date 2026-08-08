@@ -251,21 +251,24 @@ fun ProfileScreen(
 
     // Topup Dialog
     if (showTopupDialog) {
-        var isSendingProof by remember { mutableStateOf(false) }
-        var proofSent by remember { mutableStateOf(false) }
         val proofPickerLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.GetContent()
         ) { uri ->
             if (uri != null) {
-                isSendingProof = true
-                viewModel.sendTopupProof(context, uri) { success, errorMsg ->
-                    isSendingProof = false
-                    if (success) {
-                        proofSent = true
-                        Toast.makeText(context, "Bukti terkirim, ditunggu ya diproses admin", Toast.LENGTH_LONG).show()
-                    } else {
-                        Toast.makeText(context, errorMsg ?: "Gagal kirim bukti, coba lagi", Toast.LENGTH_LONG).show()
+                try {
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "image/*"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_TEXT, "Bukti transfer topup Rakku Koin.\nUser: ${profile.username}\nID: #${profile.user_number ?: "-"}")
+                        // "jid" bikin WA langsung buka chat ke nomor ini (skip contact picker).
+                        // Kalau versi WA-nya gak support extra ini, dia bakal fallback ke picker kontak biasa.
+                        putExtra("jid", "6288973461209@s.whatsapp.net")
+                        setPackage("com.whatsapp")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
+                    context.startActivity(sendIntent)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "WhatsApp gak ketemu, pastiin udah keinstall", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -275,7 +278,7 @@ fun ProfileScreen(
             text = {
                 Column {
                     Text(
-                        "1. Tap tombol di bawah buat top up lewat SocialBuzz.\n2. Setelah transfer selesai, tap tombol \"Kirim Bukti\" dan kirim screenshot bukti pembayarannya.",
+                        "1. Tap tombol di bawah buat top up lewat SocialBuzz.\n2. Setelah transfer selesai, tap tombol \"Kirim Bukti\" dan kirim screenshot bukti pembayarannya ke WA admin.",
                         fontSize = 12.sp,
                         color = TextSecondary
                     )
@@ -335,23 +338,10 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = { proofPickerLauncher.launch("image/*") },
-                        enabled = !isSendingProof,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = CyanAccent)
                     ) {
-                        if (isSendingProof) {
-                            CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(16.dp))
-                        } else {
-                            Text(if (proofSent) "Kirim Bukti Lagi" else "Kirim Bukti Pembayaran", color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    if (proofSent) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Bukti sudah dikirim, koin bakal ditambahin admin setelah dicek ya.",
-                            fontSize = 11.sp,
-                            color = CyanAccent
-                        )
+                        Text("Kirim Bukti Pembayaran", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             },
