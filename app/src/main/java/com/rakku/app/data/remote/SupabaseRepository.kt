@@ -469,7 +469,9 @@ class SupabaseRepository(
     }
 
     suspend fun getWatchHistory(userId: String): List<HistoryItem> = withContext(Dispatchers.IO) {
-        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/history?user_id=eq.$userId&content_type=eq.anime&order=updated_at.desc")
+        // Gak difilter content_type lagi - riwayat anime & manga digabung jadi satu
+        // daftar "Riwayat Tontonan", sama kayak Bookmark yang juga nyampur dua-duanya.
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/history?user_id=eq.$userId&order=updated_at.desc")
             .get().build()
         val response = client.newCall(request).execute()
         if (response.isSuccessful) {
@@ -485,7 +487,7 @@ class SupabaseRepository(
     }
 
     suspend fun clearAllHistory(userId: String): Boolean = withContext(Dispatchers.IO) {
-        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/history?user_id=eq.$userId&content_type=eq.anime")
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/history?user_id=eq.$userId")
             .delete().build()
         client.newCall(request).execute().isSuccessful
     }
@@ -494,6 +496,25 @@ class SupabaseRepository(
         val map = mapOf(
             "user_id" to userId,
             "content_type" to "anime",
+            "ref_id" to refId,
+            "title" to title,
+            "thumb" to thumb,
+            "progress_id" to progressId,
+            "progress_name" to progressName
+        )
+        val request = newRequestBuilder("$SUPABASE_URL/rest/v1/history")
+            .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
+            .build()
+        client.newCall(request).execute().isSuccessful
+    }
+
+    // Sama persis kayak saveWatchHistory di atas, cuma buat manga. Dipisah jadi
+    // function sendiri (bukan nambahin parameter content_type) biar konsisten
+    // sama pola nama fungsi anime yang udah ada, dan biar pemanggilnya jelas.
+    suspend fun saveMangaHistory(userId: String, refId: String, title: String, thumb: String?, progressId: String, progressName: String): Boolean = withContext(Dispatchers.IO) {
+        val map = mapOf(
+            "user_id" to userId,
+            "content_type" to "manga",
             "ref_id" to refId,
             "title" to title,
             "thumb" to thumb,

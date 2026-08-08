@@ -58,7 +58,8 @@ import com.rakku.app.ui.theme.VioletPrimary
 fun HistoryScreen(
     viewModel: ProfileViewModel,
     onBack: () -> Unit,
-    onSelectAnimeDetail: (String) -> Unit
+    onSelectAnimeDetail: (String) -> Unit,
+    onSelectMangaDetail: (String) -> Unit
 ) {
     val history by viewModel.history.collectAsState()
     var showClearAllConfirm by remember { mutableStateOf(false) }
@@ -102,7 +103,10 @@ fun HistoryScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
-                            .clickable { onSelectAnimeDetail(item.ref_id) },
+                            .clickable {
+                                if (item.content_type == "manga") onSelectMangaDetail(item.ref_id)
+                                else onSelectAnimeDetail(item.ref_id)
+                            },
                         colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
                     ) {
                         Row(
@@ -118,6 +122,11 @@ fun HistoryScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(item.title, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 13.sp)
+                                Text(
+                                    if (item.content_type == "manga") "MANGA" else "ANIME",
+                                    fontSize = 10.sp,
+                                    color = VioletPrimary
+                                )
                                 if (!item.progress_name.isNullOrEmpty()) {
                                     Text("Terakhir: ${item.progress_name}", fontSize = 11.sp, color = CyanAccent)
                                 }

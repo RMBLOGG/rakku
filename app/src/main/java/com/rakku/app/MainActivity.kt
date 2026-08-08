@@ -379,7 +379,11 @@ fun MainAppScreen(
                 com.rakku.app.ui.profile.HistoryScreen(
                     viewModel = profileViewModel,
                     onBack = { navController.popBackStack() },
-                    onSelectAnimeDetail = { slug -> navController.navigate("anime_detail/$slug") }
+                    onSelectAnimeDetail = { slug -> navController.navigate("anime_detail/$slug") },
+                    onSelectMangaDetail = { url ->
+                        val encoded = URLEncoder.encode(url, "UTF-8")
+                        navController.navigate("manga_detail/$encoded")
+                    }
                 )
             }
 

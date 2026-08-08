@@ -21,7 +21,10 @@ sealed class MangaListUiState {
 sealed class MangaDetailUiState {
     object Idle : MangaDetailUiState()
     object Loading : MangaDetailUiState()
-    data class Success(val detail: MangaDetailResponse, val isBookmarked: Boolean) : MangaDetailUiState()
+    // "url" ditambahin di sini (bukan cuma di parameter loadMangaDetail) supaya
+    // pas loadChapter() dipanggil dari halaman reader, kita masih bisa tau ini
+    // chapter dari manga yang mana buat disimpan sebagai ref_id riwayat baca.
+    data class Success(val url: String, val detail: MangaDetailResponse, val isBookmarked: Boolean) : MangaDetailUiState()
     data class Error(val message: String) : MangaDetailUiState()
 }
 
@@ -97,7 +100,7 @@ class MangaViewModel(
                     val bookmarks = supabaseRepository.getBookmarks(userId)
                     isBookmarked = bookmarks.any { it.ref_id == url && it.content_type == "manga" }
                 }
-                _detailState.value = MangaDetailUiState.Success(detail, isBookmarked)
+                _detailState.value = MangaDetailUiState.Success(url, detail, isBookmarked)
             } catch (e: Exception) {
                 _detailState.value = MangaDetailUiState.Error(e.message ?: "Gagal memuat detail manga")
             }
@@ -128,6 +131,28 @@ class MangaViewModel(
             try {
                 val res = rakkuApiRepository.getMangaChapter(chapterUrl)
                 _readerState.value = MangaReaderUiState.Success(res)
+
+                // Save Manga Reading History - judul, poster, & ref_id (url manga) diambil
+                // dari detailState (halaman detail manga yang dikunjungi sebelum masuk ke
+                // reader ini), sama persis pola yang dipakai AnimeViewModel buat riwayat
+                // tontonan. Nama chapter dicari dari daftar chapters di detail, dicocokin
+                // lewat url-nya.
+                val userId = sessionManager.getUserId()
+                val currentDetail = _detailState.value
+                if (userId != null && currentDetail is MangaDetailUiState.Success) {
+                    val chapterName = currentDetail.detail.chapters
+                        ?.firstOrNull { it.url == chapterUrl }
+                        ?.title
+                        ?: "Chapter"
+                    supabaseRepository.saveMangaHistory(
+                        userId = userId,
+                        refId = currentDetail.url,
+                        title = currentDetail.detail.title ?: currentDetail.url,
+                        thumb = currentDetail.detail.thumb,
+                        progressId = chapterUrl,
+                        progressName = chapterName
+                    )
+                }
             } catch (e: Exception) {
                 _readerState.value = MangaReaderUiState.Error(e.message ?: "Gagal memuat chapter manga")
             }
