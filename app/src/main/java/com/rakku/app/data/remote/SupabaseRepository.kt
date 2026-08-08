@@ -642,11 +642,17 @@ class SupabaseRepository(
 
     // TOPUP REQUESTS
 
+    sealed class TopupProofResult {
+        data class Success(val proofUrl: String) : TopupProofResult()
+        data class Error(val stage: String, val detail: String) : TopupProofResult()
+    }
+
     // UPLOAD BUKTI TF TOPUP KE BUCKET 'topup-proofs'
-    suspend fun uploadTopupProof(context: Context, userId: String, uri: Uri): String? = withContext(Dispatchers.IO) {
+    suspend fun uploadTopupProof(context: Context, userId: String, uri: Uri): TopupProofResult = withContext(Dispatchers.IO) {
         try {
             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val bytes = inputStream?.readBytes() ?: return@withContext null
+            val bytes = inputStream?.readBytes()
+                ?: return@withContext TopupProofResult.Error("upload", "Gagal baca file gambar")
             val fileName = "proof_${System.currentTimeMillis()}.jpg"
             val path = "topup-proofs/$userId/$fileName"
             val uploadUrl = "$SUPABASE_URL/storage/v1/object/$path"
@@ -662,19 +668,22 @@ class SupabaseRepository(
 
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
-                "$SUPABASE_URL/storage/v1/object/public/$path"
-            } else null
+                TopupProofResult.Success("$SUPABASE_URL/storage/v1/object/public/$path")
+            } else {
+                val body = response.body?.string()?.take(200) ?: ""
+                TopupProofResult.Error("upload", "HTTP ${response.code}: $body")
+            }
         } catch (e: Exception) {
-            e.printStackTrace()
-            null
+            TopupProofResult.Error("upload", e.message ?: e.toString())
         }
     }
 
     // Dipanggil setelah user transfer via SocialBuzz lalu kirim bukti. amountCoin/price
     // sengaja gak diisi user (gak ada pilihan paket lagi) - admin yang nentuin jumlah
     // koin pas approve, berdasarkan nominal yang kelihatan di bukti transfer.
-    suspend fun createTopupRequest(proofImageUrl: String): Boolean = withContext(Dispatchers.IO) {
-        val userId = sessionManager.getUserId() ?: return@withContext false
+    suspend fun createTopupRequest(proofImageUrl: String): TopupProofResult = withContext(Dispatchers.IO) {
+        val userId = sessionManager.getUserId()
+            ?: return@withContext TopupProofResult.Error("insert", "User belum login")
         val map = mapOf(
             "user_id" to userId,
             "amount_coin" to 0,
@@ -685,7 +694,13 @@ class SupabaseRepository(
         val request = newRequestBuilder("$SUPABASE_URL/rest/v1/topup_requests")
             .post(moshi.adapter(Map::class.java).toJson(map).toRequestBody(jsonMediaType))
             .build()
-        client.newCall(request).execute().isSuccessful
+        val response = client.newCall(request).execute()
+        if (response.isSuccessful) {
+            TopupProofResult.Success(proofImageUrl)
+        } else {
+            val body = response.body?.string()?.take(200) ?: ""
+            TopupProofResult.Error("insert", "HTTP ${response.code}: $body")
+        }
     }
 
     // FEEDBACK & REPORTS

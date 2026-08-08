@@ -258,13 +258,13 @@ fun ProfileScreen(
         ) { uri ->
             if (uri != null) {
                 isSendingProof = true
-                viewModel.sendTopupProof(context, uri) { success ->
+                viewModel.sendTopupProof(context, uri) { success, errorMsg ->
                     isSendingProof = false
                     if (success) {
                         proofSent = true
                         Toast.makeText(context, "Bukti terkirim, ditunggu ya diproses admin", Toast.LENGTH_LONG).show()
                     } else {
-                        Toast.makeText(context, "Gagal kirim bukti, coba lagi", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, errorMsg ?: "Gagal kirim bukti, coba lagi", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -279,7 +279,42 @@ fun ProfileScreen(
                         fontSize = 12.sp,
                         color = TextSecondary
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        "Nominal koin:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val packages = listOf(
+                        100 to "Rp 10.000",
+                        300 to "Rp 28.000",
+                        600 to "Rp 50.000",
+                        1200 to "Rp 95.000"
+                    )
+                    packages.forEach { (coinCount, price) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_rakku_coin),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(16.dp).clip(CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("$coinCount Koin", fontSize = 12.sp, color = TextPrimary)
+                            }
+                            Text(price, fontSize = 12.sp, color = CyanAccent, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
                     Button(
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://sociabuzz.com/rakku/tribe"))

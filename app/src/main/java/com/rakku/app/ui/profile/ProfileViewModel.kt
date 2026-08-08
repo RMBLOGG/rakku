@@ -122,16 +122,21 @@ class ProfileViewModel(
         }
     }
 
-    fun sendTopupProof(context: Context, proofUri: Uri, onResult: (Boolean) -> Unit) {
+    fun sendTopupProof(context: Context, proofUri: Uri, onResult: (Boolean, String?) -> Unit) {
         val userId = sessionManager.getUserId() ?: return
         viewModelScope.launch {
-            val proofUrl = supabaseRepository.uploadTopupProof(context, userId, proofUri)
-            if (proofUrl == null) {
-                onResult(false)
+            val uploadResult = supabaseRepository.uploadTopupProof(context, userId, proofUri)
+            if (uploadResult is SupabaseRepository.TopupProofResult.Error) {
+                onResult(false, "Upload gagal: ${uploadResult.detail}")
                 return@launch
             }
-            val success = supabaseRepository.createTopupRequest(proofUrl)
-            onResult(success)
+            val proofUrl = (uploadResult as SupabaseRepository.TopupProofResult.Success).proofUrl
+            val insertResult = supabaseRepository.createTopupRequest(proofUrl)
+            if (insertResult is SupabaseRepository.TopupProofResult.Error) {
+                onResult(false, "Simpan gagal: ${insertResult.detail}")
+            } else {
+                onResult(true, null)
+            }
         }
     }
 
