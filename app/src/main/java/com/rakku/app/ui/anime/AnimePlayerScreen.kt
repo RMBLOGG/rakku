@@ -143,10 +143,28 @@ fun AnimePlayerScreen(
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
         }
+        // PENTING: onDispose di sini sengaja DIKOSONGIN. DisposableEffect ini
+        // di-key ke isFullscreen, jadi tiap kali isFullscreen ganti (baik ke
+        // true maupun ke false), Compose bakal manggil onDispose dari effect
+        // LAMA sebelum ngejalanin effect BARU. Kalau di onDispose ini ada
+        // logic yang baca `isFullscreen`, dia bakal baca nilai yang UDAH
+        // BERUBAH (bukan nilai pas effect ini disetup) - jadi misal pas masuk
+        // fullscreen (false->true), onDispose punya effect lama sempet
+        // kepanggil dan salah baca isFullscreen=true, jadinya balikin lagi ke
+        // portrait sepersekian detik sebelum di-set landscape lagi -> keliatan
+        // "gagal fullscreen, balik ke potrait" kayak yang dilaporin. Safety
+        // net buat kasus keluar dari layar ini dipisah ke effect Unit di
+        // bawah, yang cuma jalan sekali pas composable ini bener-bener hilang
+        // dari komposisi (bukan tiap toggle).
+        onDispose { }
+    }
+
+    // Safety net: KHUSUS buat kasus layar ini ditinggalkan (navigasi ke layar
+    // lain) SELAGI masih dalam mode fullscreen. Di-key ke Unit supaya cuma
+    // jalan SEKALI pas composable ini beneran keluar dari komposisi, BUKAN
+    // tiap kali isFullscreen berubah (beda sama effect di atas).
+    DisposableEffect(Unit) {
         onDispose {
-            // Safety net: kalau layar ini ditinggalkan (navigasi lain) SELAGI masih
-            // dalam mode fullscreen, pastikan orientasi & status bar balik normal -
-            // kalau enggak, layar lain di app ikut kebawa landscape/fullscreen.
             if (activity != null && isFullscreen) {
                 activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 val window = activity.window
