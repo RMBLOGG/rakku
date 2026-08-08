@@ -174,6 +174,14 @@ fun ChatScreen(
                                     }
                                     Spacer(modifier = Modifier.width(6.dp))
                                     RoleBadge(role = msg.role)
+                                    if (msg.user_number != null) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "ID: #${msg.user_number}",
+                                            fontSize = 10.sp,
+                                            color = TextSecondary
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(4.dp))

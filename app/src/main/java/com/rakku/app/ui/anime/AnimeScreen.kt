@@ -63,7 +63,8 @@ import com.rakku.app.ui.theme.VioletPrimary
 @Composable
 fun AnimeScreen(
     viewModel: AnimeViewModel,
-    onSelectAnime: (String) -> Unit
+    onSelectAnime: (String) -> Unit,
+    onNavigateToSchedule: () -> Unit = {}
 ) {
     val listState by viewModel.listState.collectAsState()
     val currentTab by viewModel.currentTab.collectAsState()
@@ -144,8 +145,12 @@ fun AnimeScreen(
                 Tab(
                     selected = currentTab == typeKey && selectedGenre == null,
                     onClick = {
-                        queryInput = ""
-                        viewModel.loadAnimeList(typeKey)
+                        if (typeKey == "schedule") {
+                            onNavigateToSchedule()
+                        } else {
+                            queryInput = ""
+                            viewModel.loadAnimeList(typeKey)
+                        }
                     },
                     text = {
                         Text(

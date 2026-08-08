@@ -251,57 +251,72 @@ fun ProfileScreen(
 
     // Topup Dialog
     if (showTopupDialog) {
-        val packages = listOf(
-            Triple(100, "Rp 10.000", 100),
-            Triple(300, "Rp 28.000", 300),
-            Triple(600, "Rp 50.000", 600),
-            Triple(1200, "Rp 95.000", 1200)
-        )
+        var isSendingProof by remember { mutableStateOf(false) }
+        var proofSent by remember { mutableStateOf(false) }
+        val proofPickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri ->
+            if (uri != null) {
+                isSendingProof = true
+                viewModel.sendTopupProof(context, uri) { success ->
+                    isSendingProof = false
+                    if (success) {
+                        proofSent = true
+                        Toast.makeText(context, "Bukti terkirim, ditunggu ya diproses admin", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Gagal kirim bukti, coba lagi", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
         AlertDialog(
             onDismissRequest = { showTopupDialog = false },
             title = { Text("Top Up Rakku Koin", color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("Pilih paket koin untuk aktivasi fitur premium:", fontSize = 12.sp, color = TextSecondary)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    packages.forEach { (coinCount, price, amount) ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clickable {
-                                    viewModel.createTopupRequest(amount, price) { success ->
-                                        showTopupDialog = false
-                                        val waMessage = Uri.encode("Halo Admin Rakku, saya ingin topup $coinCount Koin ($price). User ID: ${profile.id}")
-                                        val waUrl = "https://wa.me/6288973461209?text=$waMessage"
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(waUrl))
-                                        context.startActivity(intent)
-                                    }
-                                },
-                            colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Image(
-                                        painter = painterResource(id = R.drawable.ic_rakku_coin),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .clip(CircleShape)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("$coinCount Koin", fontWeight = FontWeight.Bold, color = TextPrimary)
-                                }
-                                Text(price, color = CyanAccent, fontWeight = FontWeight.Bold)
-                            }
+                    Text(
+                        "1. Tap tombol di bawah buat top up lewat SocialBuzz.\n2. Setelah transfer selesai, tap tombol \"Kirim Bukti\" dan kirim screenshot bukti pembayarannya.",
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://sociabuzz.com/rakku/tribe"))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = VioletPrimary)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_rakku_coin),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(18.dp).clip(CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Top Up via SocialBuzz")
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = { proofPickerLauncher.launch("image/*") },
+                        enabled = !isSendingProof,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = CyanAccent)
+                    ) {
+                        if (isSendingProof) {
+                            CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(16.dp))
+                        } else {
+                            Text(if (proofSent) "Kirim Bukti Lagi" else "Kirim Bukti Pembayaran", color = Color.Black, fontWeight = FontWeight.Bold)
                         }
+                    }
+                    if (proofSent) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Bukti sudah dikirim, koin bakal ditambahin admin setelah dicek ya.",
+                            fontSize = 11.sp,
+                            color = CyanAccent
+                        )
                     }
                 }
             },

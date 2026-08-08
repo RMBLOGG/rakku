@@ -122,9 +122,15 @@ class ProfileViewModel(
         }
     }
 
-    fun createTopupRequest(amountCoin: Int, price: String, onResult: (Boolean) -> Unit) {
+    fun sendTopupProof(context: Context, proofUri: Uri, onResult: (Boolean) -> Unit) {
+        val userId = sessionManager.getUserId() ?: return
         viewModelScope.launch {
-            val success = supabaseRepository.createTopupRequest(amountCoin, price)
+            val proofUrl = supabaseRepository.uploadTopupProof(context, userId, proofUri)
+            if (proofUrl == null) {
+                onResult(false)
+                return@launch
+            }
+            val success = supabaseRepository.createTopupRequest(proofUrl)
             onResult(success)
         }
     }

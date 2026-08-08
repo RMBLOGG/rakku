@@ -29,6 +29,12 @@ sealed class AnimeListUiState {
     data class Error(val message: String) : AnimeListUiState()
 }
 
+sealed class ScheduleUiState {
+    object Loading : ScheduleUiState()
+    data class Success(val items: List<com.rakku.app.data.model.AnimeinwebItem>) : ScheduleUiState()
+    data class Error(val message: String) : ScheduleUiState()
+}
+
 sealed class AnimeDetailUiState {
     object Idle : AnimeDetailUiState()
     object Loading : AnimeDetailUiState()
@@ -131,6 +137,43 @@ class AnimeViewModel(
 
     private val _detailState = MutableStateFlow<AnimeDetailUiState>(AnimeDetailUiState.Idle)
     val detailState: StateFlow<AnimeDetailUiState> = _detailState
+
+    private val _scheduleState = MutableStateFlow<ScheduleUiState>(ScheduleUiState.Loading)
+    val scheduleState: StateFlow<ScheduleUiState> = _scheduleState
+
+    private val indoDays = listOf("SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU")
+    var selectedScheduleDay = MutableStateFlow(todayIndonesianDay())
+
+    fun loadSchedule(day: String = selectedScheduleDay.value) {
+        selectedScheduleDay.value = day
+        viewModelScope.launch {
+            _scheduleState.value = ScheduleUiState.Loading
+            try {
+                val items = rakkuApiRepository.getScheduleForDay(day)
+                _scheduleState.value = ScheduleUiState.Success(items)
+            } catch (e: Exception) {
+                _scheduleState.value = ScheduleUiState.Error(e.message ?: "Gagal memuat jadwal")
+            }
+        }
+    }
+
+    fun goToPreviousScheduleDay() {
+        val idx = indoDays.indexOf(selectedScheduleDay.value).let { if (it < 0) 0 else it }
+        val prevIdx = (idx - 1 + indoDays.size) % indoDays.size
+        loadSchedule(indoDays[prevIdx])
+    }
+
+    fun goToNextScheduleDay() {
+        val idx = indoDays.indexOf(selectedScheduleDay.value).let { if (it < 0) 0 else it }
+        val nextIdx = (idx + 1) % indoDays.size
+        loadSchedule(indoDays[nextIdx])
+    }
+
+    private fun todayIndonesianDay(): String {
+        val days = arrayOf("MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU")
+        val idx = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK) - 1
+        return days.getOrElse(idx) { "MINGGU" }
+    }
 
     private val _playerState = MutableStateFlow<AnimePlayerUiState>(AnimePlayerUiState.Idle)
     val playerState: StateFlow<AnimePlayerUiState> = _playerState

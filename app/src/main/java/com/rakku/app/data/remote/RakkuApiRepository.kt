@@ -200,6 +200,14 @@ class RakkuApiRepository(private val context: Context? = null) {
         )
     }
 
+    // Dipisah dari getAnimeHome(type="schedule") karena ScheduleScreen butuh
+    // milih hari sendiri (Senin..Minggu), bukan cuma "hari ini" kayak tab
+    // Jadwal yang lama. Return raw AnimeinwebItem (bukan AnimeItem) soalnya
+    // ScheduleScreen butuh field key_time/genre/views yang gak ada di AnimeItem.
+    suspend fun getScheduleForDay(day: String): List<AnimeinwebItem> {
+        return animeinwebApi.getSchedule(day = day)
+    }
+
     private fun todayIndonesianDay(): String {
         val days = arrayOf("MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU")
         val idx = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1 // Calendar: Sunday=1

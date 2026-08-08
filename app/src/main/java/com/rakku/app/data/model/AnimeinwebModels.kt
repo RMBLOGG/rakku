@@ -26,7 +26,10 @@ data class AnimeinwebItem(
     val image_poster: String? = null,
     val image_cover: String? = null,
     val aired_start: String? = null,
-    val studio: String? = null
+    val studio: String? = null,
+    // Timestamp lengkap "yyyy-MM-dd HH:mm:ss" - dipakai di ScheduleScreen buat
+    // nampilin jam tayang (bagian HH:mm-nya doang) di timeline.
+    val key_time: String? = null
 ) {
     fun toAnimeItem() = AnimeItem(
         title = title,

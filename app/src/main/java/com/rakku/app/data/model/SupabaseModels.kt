@@ -96,7 +96,10 @@ data class GlobalChatMessage(
     // Border yang lagi dipasang si pengirim pesan ini. Kolom ini gak ada di
     // tabel global_chat_messages, diisi belakangan dari get_public_profiles
     // - lihat getGlobalChatMessages() di SupabaseRepository.
-    var active_border_url: String? = null
+    var active_border_url: String? = null,
+    // Nomor ID publik pengirim (sama kayak "ID: #x" di ProfileScreen). Juga
+    // gak ada di tabel global_chat_messages, diisi dari get_public_profiles.
+    var user_number: Long? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -107,6 +110,7 @@ data class TopupRequest(
     val price: String = "",
     val status: String = "pending", // 'pending' | 'approved' | 'rejected'
     val proof_note: String? = null,
+    val proof_image_url: String? = null,
     val created_at: String? = null,
     val approved_by: String? = null,
     val approved_at: String? = null,

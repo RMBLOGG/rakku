@@ -40,6 +40,7 @@ import com.rakku.app.data.remote.SupabaseRepository
 import com.rakku.app.ui.anime.AnimeDetailScreen
 import com.rakku.app.ui.anime.AnimePlayerScreen
 import com.rakku.app.ui.anime.AnimeScreen
+import com.rakku.app.ui.anime.ScheduleScreen
 import com.rakku.app.ui.anime.AnimeViewModel
 import com.rakku.app.ui.auth.AuthViewModel
 import com.rakku.app.ui.auth.LoginScreen
@@ -217,6 +218,15 @@ fun MainAppScreen(
             composable("anime") {
                 AnimeScreen(
                     viewModel = animeViewModel,
+                    onSelectAnime = { slug -> navController.navigate("anime_detail/$slug") },
+                    onNavigateToSchedule = { navController.navigate("schedule") }
+                )
+            }
+
+            composable("schedule") {
+                ScheduleScreen(
+                    viewModel = animeViewModel,
+                    onBack = { navController.popBackStack() },
                     onSelectAnime = { slug -> navController.navigate("anime_detail/$slug") }
                 )
             }
