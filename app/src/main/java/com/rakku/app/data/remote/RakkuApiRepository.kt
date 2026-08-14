@@ -12,6 +12,7 @@ import com.rakku.app.data.model.GenreItem
 import com.rakku.app.data.model.MangaDetailResponse
 import com.rakku.app.data.model.MangaDownloadResponse
 import com.rakku.app.data.model.MangaHomeResponse
+import com.rakku.app.data.model.MangaItem
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.Cache
@@ -32,12 +33,14 @@ class RakkuApiRepository(private val context: Context? = null) {
         .build()
     private val client = OkHttpClient.Builder().build()
 
-    private val api: RakkuApiService = Retrofit.Builder()
-        .baseUrl(RakkuApiService.BASE_URL)
+    // MANGA/COMIC: manggil langsung ke Sanka Comic API (sumber: Komiku.org),
+    // GANTI TOTAL dari proxy Vercel lama (RakkuApiService, sudah dihapus).
+    private val comicApi: SankaComicApiService = Retrofit.Builder()
+        .baseUrl(SankaComicApiService.BASE_URL)
         .client(client)
         .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()
-        .create(RakkuApiService::class.java)
+        .create(SankaComicApiService::class.java)
 
     // ANIME: ganti total dari Sanka ke animeinweb-api - sumber yang sama persis
     // kayak "Dayynime-v5" di Aniku. Dikasih cache disk (50MB): kalau ONLINE,
@@ -84,18 +87,53 @@ class RakkuApiRepository(private val context: Context? = null) {
         .build()
         .create(AnimeinwebApiService::class.java)
 
-    // MANGA (tidak diubah)
-    suspend fun getMangaHome(): MangaHomeResponse = api.getMangaHome()
-
-    suspend fun getMangaDetail(rawUrl: String): MangaDetailResponse {
-        return api.getMangaInfo(rawUrl).data ?: MangaDetailResponse()
+    // MANGA/COMIC: GANTI TOTAL ke Sanka Comic API, gabungin /comic/terbaru
+    // (buat "latest") + /comic/populer (buat "popular") jadi 1 response biar
+    // bentuknya tetep sama kayak MangaHomeResponse lama - MangaViewModel &
+    // HomeViewModel gak perlu diubah sama sekali.
+    suspend fun getMangaHome(): MangaHomeResponse {
+        val latestRes = comicApi.getLatest()
+        val popularRes = comicApi.getPopular()
+        return MangaHomeResponse(
+            status = "success",
+            latest = latestRes.comics?.map { it.toMangaItem() },
+            popular = popularRes.comics?.map { it.toMangaItem() },
+            data = null
+        )
     }
 
-    suspend fun getMangaChapter(rawUrl: String): MangaDownloadResponse {
-        return api.getMangaChapter(rawUrl)
+    // "slugOrUrl" di sini adalah MangaItem.url yang sekarang isinya SLUG
+    // polos (bukan URL lengkap lagi), tapi tetep dilewatin ke extractComicSlug
+    // buat jaga-jaga kalau ada pemanggil lama yang masih ngirim link mentah.
+    suspend fun getMangaDetail(slugOrUrl: String): MangaDetailResponse {
+        val slug = extractComicSlug(slugOrUrl).ifBlank { slugOrUrl }
+        return comicApi.getComicDetail(slug).toMangaDetailResponse()
     }
 
-    suspend fun searchManga(query: String): MangaHomeResponse = api.searchManga(query)
+    // "chapterSlug" = MangaChapterItem.url, udah lengkap dgn nomor chapter
+    // (diambil langsung dari field "slug" di response detail komik)
+    suspend fun getMangaChapter(chapterSlug: String): MangaDownloadResponse {
+        return comicApi.getComicChapter(chapterSlug).toMangaDownloadResponse()
+    }
+
+    suspend fun searchManga(query: String): MangaHomeResponse {
+        val res = comicApi.searchComic(query)
+        return MangaHomeResponse(
+            status = if (res.status == true) "success" else "error",
+            latest = null,
+            popular = null,
+            data = res.data?.map { it.toMangaItem() }
+        )
+    }
+
+    suspend fun getMangaGenres(): List<Pair<String, String>> {
+        // Pair<slug, name>, dipetain minimal - belum ada UI genre di MangaScreen
+        return comicApi.getGenres().data?.map { it.value to it.name } ?: emptyList()
+    }
+
+    suspend fun getMangaByGenre(genreSlug: String): List<MangaItem> {
+        return comicApi.getComicByGenre(genreSlug).comics?.map { it.toMangaItem() } ?: emptyList()
+    }
 
     // ANIME - dipetain balik ke AnimeHomeResponse/AnimeDetailResponse/dst biar UI
     // (AnimeViewModel.kt, AnimeScreen.kt) sama sekali gak perlu diubah.
