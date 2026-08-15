@@ -98,7 +98,21 @@ fun MangaDetailScreen(
             }
             is MangaDetailUiState.Error -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = state.message, color = Color.Red, fontSize = 14.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = state.message, color = Color.Red, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    brush = Brush.horizontalGradient(listOf(CyanAccent, VioletPrimary)),
+                                    shape = RoundedCornerShape(24.dp)
+                                )
+                                .clickable { viewModel.loadMangaDetail(url) }
+                                .padding(horizontal = 20.dp, vertical = 10.dp)
+                        ) {
+                            Text("Coba Lagi", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
             is MangaDetailUiState.Success -> {

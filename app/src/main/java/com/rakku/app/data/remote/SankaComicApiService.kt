@@ -1,55 +1,52 @@
 package com.rakku.app.data.remote
 
-import com.rakku.app.data.model.SankaComicChapterResponse
-import com.rakku.app.data.model.SankaComicDetailResponse
-import com.rakku.app.data.model.SankaComicGenreListResponse
-import com.rakku.app.data.model.SankaComicGenreListWrapper
-import com.rakku.app.data.model.SankaComicListResponse
-import com.rakku.app.data.model.SankaComicSearchResponse
+import com.rakku.app.data.model.BacakomikChapterResponse
+import com.rakku.app.data.model.BacakomikDetailResponse
+import com.rakku.app.data.model.BacakomikGenreListResponse
+import com.rakku.app.data.model.BacakomikListResponse
 import retrofit2.http.GET
 import retrofit2.http.Path
-import retrofit2.http.Query
 
 /**
- * Manggil LANGSUNG ke API komik Sanka (sumber data: Komiku.org), gantiin
- * proxy Vercel lama ("api/manga/..."). Endpoint publik, tanpa apikey, jadi
- * aman dipanggil langsung dari app - sama kayak pola SankaAnimeApiService.
+ * Manggil LANGSUNG ke API komik Sanka - endpoint /bacakomik/* (sumber data:
+ * bacakomik.my), gantiin endpoint generik lama (/comic/terbaru, /populer,
+ * /comic/{slug}, /chapter/{slug} - sumber Komiku.org) yang lebih sering
+ * error/gak stabil. Endpoint publik, tanpa apikey.
  *
- * Endpoint kayak /comic/unlimited, /comic/scroll, /comic/realtime,
- * /comic/comparison, /comic/docs, /comic/fullstats, /comic/trending,
- * /comic/browse, /comic/type/{type} SENGAJA gak dipakai - itu cuma fitur
- * showcase/benchmark performa API, bukan endpoint buat kebutuhan baca komik.
+ * Endpoint kayak /bacakomik/unlimited, /bacakomik/scroll, /bacakomik/realtime,
+ * /bacakomik/comparison, /bacakomik/docs, /bacakomik/fullstats,
+ * /bacakomik/trending, /bacakomik/browse SENGAJA gak dipakai - itu cuma
+ * fitur showcase/benchmark performa API, bukan endpoint buat kebutuhan
+ * baca komik. /bacakomik/top, /list, /recomen, /komikberwarna/{page} juga
+ * belum dipakai (bentuk JSON-nya sama kayak /latest & /populer kalau
+ * suatu saat mau ditambah).
  */
 interface SankaComicApiService {
 
-    @GET("terbaru")
-    suspend fun getLatest(@Query("page") page: Int? = null): SankaComicListResponse
+    @GET("bacakomik/latest")
+    suspend fun getLatest(): BacakomikListResponse
 
-    @GET("populer")
-    suspend fun getPopular(@Query("page") page: Int? = null): SankaComicListResponse
+    @GET("bacakomik/populer")
+    suspend fun getPopular(): BacakomikListResponse
 
-    @GET("search")
-    suspend fun searchComic(@Query("q") query: String): SankaComicSearchResponse
+    // "query" di-percent-encode otomatis sama Retrofit (spasi -> %20)
+    @GET("bacakomik/search/{query}")
+    suspend fun searchComic(@Path("query") query: String): BacakomikListResponse
 
-    // path "slug" di sini bisa berupa slug polos ("naruto") ATAU sudah
-    // sekalian slug hasil ekstraksi dari link /manga/{slug}/
-    @GET("comic/{slug}")
-    suspend fun getComicDetail(@Path("slug") slug: String): SankaComicDetailResponse
+    @GET("bacakomik/detail/{slug}")
+    suspend fun getComicDetail(@Path("slug") slug: String): BacakomikDetailResponse
 
     // "chapterSlug" WAJIB slug lengkap dengan nomor chapter-nya, mis.
-    // "naruto-chapter-700" (didapat dari field "slug" di dalam
-    // SankaComicDetailResponse.chapters, bukan slug manga polos)
-    @GET("chapter/{chapterSlug}")
-    suspend fun getComicChapter(@Path("chapterSlug") chapterSlug: String): SankaComicChapterResponse
+    // "nano-machine-chapter-1" (didapat dari field "slug" di dalam
+    // BacakomikDetailResponse.detail.chapters, bukan slug manga polos)
+    @GET("bacakomik/chapter/{chapterSlug}")
+    suspend fun getComicChapter(@Path("chapterSlug") chapterSlug: String): BacakomikChapterResponse
 
-    @GET("genres")
-    suspend fun getGenres(): SankaComicGenreListWrapper
+    @GET("bacakomik/genres")
+    suspend fun getGenres(): BacakomikGenreListResponse
 
-    @GET("genre/{slug}")
-    suspend fun getComicByGenre(
-        @Path("slug") slug: String,
-        @Query("page") page: Int? = null
-    ): SankaComicGenreListResponse
+    @GET("bacakomik/genre/{slug}")
+    suspend fun getComicByGenre(@Path("slug") slug: String): BacakomikListResponse
 
     companion object {
         const val BASE_URL = "https://www.sankavollerei.web.id/comic/"

@@ -26,6 +26,17 @@ import java.util.concurrent.TimeUnit
 
 class RakkuApiRepository(private val context: Context? = null) {
 
+    companion object {
+        // Shared lintas semua instance RakkuApiRepository (kalau di-recreate,
+        // misal lewat DI/ViewModel factory) soalnya rate limit 30/menit itu
+        // per-IP di sisi server Sanka, bukan per-object di app.
+        private val comicRateLimitLock = Any()
+        @Volatile private var lastComicRequestTime = 0L
+        // 30 req/menit = 1 req / 2 detik. Dikasih buffer jadi 2.2 detik biar
+        // ada jarak aman, gak pas-pasan di tepi limit.
+        private const val MIN_COMIC_REQUEST_INTERVAL_MS = 2200L
+    }
+
     private val moshi = Moshi.Builder()
         .add(LenientStatusAdapter())
         .add(LenientNameListAdapter())
@@ -53,6 +64,36 @@ class RakkuApiRepository(private val context: Context? = null) {
                     .build()
             }
             chain.proceed(request)
+        }
+        // THROTTLE, bukan retry-after-kena. Sanka API limitnya KERAS: 30
+        // req/menit, 3x kena baru BAN PERMANEN (bukan cuma "coba lagi nanti").
+        // Jadi strategi yang bener adalah NYEGAH request numpuk dari awal
+        // (spasi tiap request >= 2.2 detik lintas SEMUA pemanggilan comicApi,
+        // pake companion object biar kehitung sama meski RakkuApiRepository
+        // dibikin ulang instance-nya), BUKAN nembak ulang pas udah kena 429
+        // (itu malah nambah jumlah pelanggaran & bikin makin deket ke ban).
+        .addInterceptor { chain ->
+            synchronized(comicRateLimitLock) {
+                val now = System.currentTimeMillis()
+                val wait = MIN_COMIC_REQUEST_INTERVAL_MS - (now - lastComicRequestTime)
+                if (wait > 0) Thread.sleep(wait)
+                lastComicRequestTime = System.currentTimeMillis()
+            }
+            val request = chain.request()
+            var response = chain.proceed(request)
+            // Kalau masih kena 429 juga (misal user lain yang bikin server penuh),
+            // JANGAN langsung nembak ulang - hormatin Retry-After dari server kalau
+            // ada, minimal tunggu 5 detik, dan cuma retry SEKALI biar gak nambah
+            // pelanggaran. Kalau masih gagal, biarin UI yang nampilin error +
+            // tombol "Coba Lagi" manual.
+            if (response.code == 429) {
+                val retryAfterSec = response.header("Retry-After")?.toLongOrNull() ?: 5L
+                response.close()
+                Thread.sleep(retryAfterSec.coerceAtLeast(5L) * 1000)
+                synchronized(comicRateLimitLock) { lastComicRequestTime = System.currentTimeMillis() }
+                response = chain.proceed(request)
+            }
+            response
         }
         .addNetworkInterceptor { chain ->
             val response = chain.proceed(chain.request())
@@ -116,24 +157,26 @@ class RakkuApiRepository(private val context: Context? = null) {
         .build()
         .create(AnimeinwebApiService::class.java)
 
-    // MANGA/COMIC: GANTI TOTAL ke Sanka Comic API, gabungin /comic/terbaru
-    // (buat "latest") + /comic/populer (buat "popular") jadi 1 response biar
-    // bentuknya tetep sama kayak MangaHomeResponse lama - MangaViewModel &
-    // HomeViewModel gak perlu diubah sama sekali.
+    // MANGA/COMIC: GANTI ke endpoint /bacakomik/* (sumber bacakomik.my),
+    // gabungin /bacakomik/latest (buat "latest") + /bacakomik/populer
+    // (buat "popular") jadi 1 response biar bentuknya tetep sama kayak
+    // MangaHomeResponse lama - MangaViewModel & HomeViewModel gak perlu
+    // diubah sama sekali.
     suspend fun getMangaHome(): MangaHomeResponse {
         val latestRes = comicApi.getLatest()
         val popularRes = comicApi.getPopular()
         return MangaHomeResponse(
             status = "success",
-            latest = latestRes.comics?.map { it.toMangaItem() },
-            popular = popularRes.comics?.map { it.toMangaItem() },
+            latest = latestRes.komikList?.map { it.toMangaItem() },
+            popular = popularRes.komikList?.map { it.toMangaItem() },
             data = null
         )
     }
 
-    // "slugOrUrl" di sini adalah MangaItem.url yang sekarang isinya SLUG
-    // polos (bukan URL lengkap lagi), tapi tetep dilewatin ke extractComicSlug
-    // buat jaga-jaga kalau ada pemanggil lama yang masih ngirim link mentah.
+    // "slugOrUrl" di sini adalah MangaItem.url yang isinya SLUG polos
+    // langsung dari /bacakomik/* (gak perlu ekstraksi apa-apa), tapi tetep
+    // dilewatin ke extractComicSlug buat jaga-jaga kalau ada pemanggil lama
+    // yang masih ngirim link mentah.
     suspend fun getMangaDetail(slugOrUrl: String): MangaDetailResponse {
         val slug = extractComicSlug(slugOrUrl).ifBlank { slugOrUrl }
         return comicApi.getComicDetail(slug).toMangaDetailResponse()
@@ -148,20 +191,20 @@ class RakkuApiRepository(private val context: Context? = null) {
     suspend fun searchManga(query: String): MangaHomeResponse {
         val res = comicApi.searchComic(query)
         return MangaHomeResponse(
-            status = if (res.status == true) "success" else "error",
+            status = if (res.success == true) "success" else "error",
             latest = null,
             popular = null,
-            data = res.data?.map { it.toMangaItem() }
+            data = res.komikList?.map { it.toMangaItem() }
         )
     }
 
     suspend fun getMangaGenres(): List<Pair<String, String>> {
         // Pair<slug, name>, dipetain minimal - belum ada UI genre di MangaScreen
-        return comicApi.getGenres().data?.map { it.value to it.name } ?: emptyList()
+        return comicApi.getGenres().genres?.map { it.slug to it.title } ?: emptyList()
     }
 
     suspend fun getMangaByGenre(genreSlug: String): List<MangaItem> {
-        return comicApi.getComicByGenre(genreSlug).comics?.map { it.toMangaItem() } ?: emptyList()
+        return comicApi.getComicByGenre(genreSlug).komikList?.map { it.toMangaItem() } ?: emptyList()
     }
 
     // ANIME - dipetain balik ke AnimeHomeResponse/AnimeDetailResponse/dst biar UI

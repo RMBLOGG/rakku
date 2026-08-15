@@ -3,146 +3,110 @@ package com.rakku.app.data.model
 import com.squareup.moshi.JsonClass
 
 /**
- * Model mentah buat response JSON dari Sanka Comic API
- * (https://www.sankavollerei.web.id/comic/...), sumber data aslinya scrape
- * dari Komiku.org. File ini KHUSUS buat bentuk JSON asli si API - dipetain
- * ke MangaItem/MangaDetailResponse/dst (di MangaModels.kt) lewat
+ * Model mentah buat response JSON dari Sanka Comic API - BACAKOMIK
+ * (https://www.sankavollerei.web.id/comic/bacakomik/...), sumber data
+ * dari bacakomik.my. GANTI dari endpoint generik lama (/comic/terbaru,
+ * /comic/populer, /comic/comic/{slug}, dst - sumber Komiku.org) karena
+ * endpoint /bacakomik/* ini lebih stabil.
+ *
+ * File ini KHUSUS buat bentuk JSON asli si API - dipetain ke
+ * MangaItem/MangaDetailResponse/dst (di MangaModels.kt) lewat
  * SankaComicMappers.kt supaya UI manga (MangaScreen, MangaDetailScreen,
  * MangaReaderScreen) sama sekali gak perlu diubah.
  */
 
+// Dipakai buat /bacakomik/latest, /populer, /only/manga, /top, /list,
+// /recomen, /komikberwarna/{page}, /search/{query}, /genre/{slug} - semua
+// bentuk JSON-nya sama persis (cuma field "chapter"/"date"/"rating" yang
+// kadang ada kadang enggak tergantung endpoint, makanya nullable semua).
 @JsonClass(generateAdapter = true)
-data class SankaComicListItem(
+data class BacakomikListItem(
     val title: String = "",
-    val link: String? = null,
-    val image: String? = null,
+    val slug: String = "",
+    val cover: String? = null,
     val chapter: String? = null,
-    val time_ago: String? = null,
-    val status: String? = null,
+    val date: String? = null,
     val rating: String? = null,
-    val genre: String? = null
+    val type: String? = null
 )
 
 @JsonClass(generateAdapter = true)
-data class SankaComicPagination(
-    val current_page: Int? = null,
-    val per_page: Int? = null,
-    val total: Int? = null,
-    val total_on_page: Int? = null,
-    val has_more: Boolean? = null
-)
-
-// Dipakai buat /comic/terbaru dan /comic/populer (bentuk JSON-nya sama)
-@JsonClass(generateAdapter = true)
-data class SankaComicListResponse(
+data class BacakomikListResponse(
     val creator: String? = null,
-    val comics: List<SankaComicListItem>? = null,
-    val pagination: SankaComicPagination? = null
-)
-
-// Dipakai buat /comic/genre/{slug}
-@JsonClass(generateAdapter = true)
-data class SankaComicGenreListResponse(
-    val creator: String? = null,
-    val genre: String? = null,
-    val comics: List<SankaComicListItem>? = null,
-    val pagination: SankaComicPagination? = null
+    val success: Boolean? = null,
+    val komikList: List<BacakomikListItem>? = null,
+    val hasNextPage: Boolean? = null,
+    val currentPage: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
-data class SankaComicSearchItem(
+data class BacakomikGenreRef(
     val title: String = "",
-    val altTitle: String? = null,
+    val slug: String = ""
+)
+
+// PENTING: field "title" di tiap chapter SELALU KOSONG ("") dari API ini -
+// nomor chapter WAJIB diekstrak dari "slug" (mis. "nano-machine-chapter-325"
+// -> "Chapter 325"), lihat extractChapterLabel() di SankaComicMappers.kt.
+@JsonClass(generateAdapter = true)
+data class BacakomikChapterRef(
+    val title: String = "",
     val slug: String = "",
-    val href: String? = null,
-    val thumbnail: String? = null,
-    val type: String? = null,
-    val genre: String? = null,
-    val description: String? = null
-)
-
-// Dipakai buat /comic/search?q=...
-@JsonClass(generateAdapter = true)
-data class SankaComicSearchResponse(
-    val status: Boolean? = null,
-    val creator: String? = null,
-    val message: String? = null,
-    val q: String? = null,
-    val total: Int? = null,
-    val data: List<SankaComicSearchItem>? = null
-)
-
-@JsonClass(generateAdapter = true)
-data class SankaComicMetadata(
-    val type: String? = null,
-    val author: String? = null,
-    val status: String? = null,
-    val concept: String? = null,
-    val age_rating: String? = null,
-    val reading_direction: String? = null
-)
-
-@JsonClass(generateAdapter = true)
-data class SankaComicGenreRef(
-    val name: String = "",
-    val slug: String? = null,
-    val link: String? = null
-)
-
-@JsonClass(generateAdapter = true)
-data class SankaComicChapterRef(
-    val chapter: String = "",
-    val slug: String = "",
-    val link: String? = null,
     val date: String? = null
 )
 
-// Dipakai buat /comic/comic/{slug} (detail komik)
 @JsonClass(generateAdapter = true)
-data class SankaComicDetailResponse(
-    val creator: String? = null,
-    val slug: String? = null,
+data class BacakomikDetail(
     val title: String? = null,
-    val title_indonesian: String? = null,
-    val image: String? = null,
+    val cover: String? = null,
+    val rating: String? = null,
+    val otherTitle: String? = null,
+    val status: String? = null,
+    val type: String? = null,
+    val author: String? = null,
+    val artist: String? = null,
+    val release: String? = null,
+    val series: String? = null,
+    val reader: String? = null,
     val synopsis: String? = null,
-    val metadata: SankaComicMetadata? = null,
-    val genres: List<SankaComicGenreRef>? = null,
-    val chapters: List<SankaComicChapterRef>? = null
+    val genres: List<BacakomikGenreRef>? = null,
+    val chapters: List<BacakomikChapterRef>? = null
 )
 
+// Dipakai buat /bacakomik/detail/{slug}
 @JsonClass(generateAdapter = true)
-data class SankaComicNavigation(
-    val previousChapter: String? = null,
-    val nextChapter: String? = null,
-    val chapterList: String? = null
-)
-
-// Dipakai buat /comic/chapter/{chapterSlug} (baca gambar per chapter)
-@JsonClass(generateAdapter = true)
-data class SankaComicChapterResponse(
+data class BacakomikDetailResponse(
     val creator: String? = null,
-    val manga_title: String? = null,
-    val chapter_title: String? = null,
-    val navigation: SankaComicNavigation? = null,
+    val success: Boolean? = null,
+    val detail: BacakomikDetail? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class BacakomikChapterNavigation(
+    val next: String? = null,
+    val prev: String? = null
+)
+
+// Dipakai buat /bacakomik/chapter/{chapterSlug} (baca gambar per chapter)
+@JsonClass(generateAdapter = true)
+data class BacakomikChapterResponse(
+    val creator: String? = null,
+    val success: Boolean? = null,
+    val title: String? = null,
     val images: List<String>? = null,
-    // Sama kayak "images" tapi link-nya udah dibungkus lewat proxy
-    // (.../comic/proxy?url=...) - dipakai kalau load gambar langsung
-    // ke img.komiku.org gagal (hotlink/CORS diblok).
-    val imagesproxy: List<String>? = null
+    val navigation: BacakomikChapterNavigation? = null
 )
 
 @JsonClass(generateAdapter = true)
-data class SankaComicGenreItem(
-    val value: String = "",
-    val name: String = ""
+data class BacakomikGenreItem(
+    val title: String = "",
+    val slug: String = ""
 )
 
-// Dipakai buat /comic/genres (list semua genre)
+// Dipakai buat /bacakomik/genres (list semua genre)
 @JsonClass(generateAdapter = true)
-data class SankaComicGenreListWrapper(
-    val status: Boolean? = null,
+data class BacakomikGenreListResponse(
     val creator: String? = null,
-    val message: String? = null,
-    val data: List<SankaComicGenreItem>? = null
+    val success: Boolean? = null,
+    val genres: List<BacakomikGenreItem>? = null
 )
