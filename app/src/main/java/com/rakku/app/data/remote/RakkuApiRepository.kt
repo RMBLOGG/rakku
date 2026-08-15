@@ -35,9 +35,38 @@ class RakkuApiRepository(private val context: Context? = null) {
 
     // MANGA/COMIC: manggil langsung ke Sanka Comic API (sumber: Komiku.org),
     // GANTI TOTAL dari proxy Vercel lama (RakkuApiService, sudah dihapus).
+    // Dikasih HTTP cache (30MB) - dulu gak ada sama sekali, jadi tiap buka
+    // tab Manga / balik dari detail selalu fetch fresh ke Sanka API dan
+    // gampang banget kena HTTP 429 (rate limit). Sekarang sama polanya kayak
+    // animeClient: cache 1 jam kalau online, fallback stale 7 hari kalau offline.
+    private val comicCache: Cache? = context?.let {
+        Cache(File(it.cacheDir, "sanka_comic_http_cache"), 30L * 1024 * 1024)
+    }
+
+    private val comicClient = OkHttpClient.Builder()
+        .apply { comicCache?.let { cache(it) } }
+        .addInterceptor { chain ->
+            var request = chain.request()
+            if (!isNetworkAvailable()) {
+                request = request.newBuilder()
+                    .cacheControl(CacheControl.Builder().maxStale(7, TimeUnit.DAYS).build())
+                    .build()
+            }
+            chain.proceed(request)
+        }
+        .addNetworkInterceptor { chain ->
+            val response = chain.proceed(chain.request())
+            val cacheControl = CacheControl.Builder().maxAge(1, TimeUnit.HOURS).build()
+            response.newBuilder()
+                .header("Cache-Control", cacheControl.toString())
+                .removeHeader("Pragma")
+                .build()
+        }
+        .build()
+
     private val comicApi: SankaComicApiService = Retrofit.Builder()
         .baseUrl(SankaComicApiService.BASE_URL)
-        .client(client)
+        .client(comicClient)
         .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()
         .create(SankaComicApiService::class.java)

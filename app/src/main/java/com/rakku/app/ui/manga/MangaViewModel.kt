@@ -8,6 +8,8 @@ import com.rakku.app.data.model.MangaDownloadResponse
 import com.rakku.app.data.model.MangaItem
 import com.rakku.app.data.remote.RakkuApiRepository
 import com.rakku.app.data.remote.SupabaseRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -52,6 +54,11 @@ class MangaViewModel(
 
     var searchQuery = MutableStateFlow("")
 
+    // Debounce job buat search - biar gak nembak API tiap keystroke (ini yang
+    // bikin manga gampang kena HTTP 429, soalnya Sanka API gak dikasih cache
+    // kayak animeinwebApi). Job lama di-cancel tiap kali user ngetik lagi.
+    private var searchJob: Job? = null
+
     init {
         loadMangaList()
     }
@@ -73,11 +80,13 @@ class MangaViewModel(
 
     fun searchManga(query: String) {
         searchQuery.value = query
+        searchJob?.cancel() // batalin pencarian sebelumnya yang belum sempet jalan
         if (query.isBlank()) {
             loadMangaList()
             return
         }
-        viewModelScope.launch {
+        searchJob = viewModelScope.launch {
+            delay(400) // debounce - tunggu user berenti ngetik dulu baru fire API
             _listState.value = MangaListUiState.Loading
             try {
                 val res = rakkuApiRepository.searchManga(query)
