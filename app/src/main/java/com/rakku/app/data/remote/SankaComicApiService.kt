@@ -8,7 +8,7 @@ import retrofit2.http.GET
 import retrofit2.http.Path
 
 /**
- * Manggil LANGSUNG ke API komik Sanka - endpoint /bacakomik/* (sumber data:
+ * Manggil LANGSUNG ke API komik Sanka - endpoint bacakomik (sumber data:
  * bacakomik.my), gantiin endpoint generik lama (/comic/terbaru, /populer,
  * /comic/{slug}, /chapter/{slug} - sumber Komiku.org) yang lebih sering
  * error/gak stabil. Endpoint publik, tanpa apikey.

@@ -9,7 +9,7 @@ import com.rakku.app.data.model.MangaDownloadResponse
 import com.rakku.app.data.model.MangaItem
 
 /**
- * Endpoint /bacakomik/* udah nyediain "slug" polos langsung (bukan link kayak
+ * Endpoint bacakomik udah nyediain "slug" polos langsung (bukan link kayak
  * "/manga/naruto/" di endpoint lama), jadi gak perlu ekstraksi apa-apa lagi -
  * fungsi ini dipertahankan (dijadiin no-op passthrough) supaya kalau ada
  * pemanggil lama yang masih manggil extractComicSlug() gak perlu diubah.

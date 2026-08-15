@@ -7,7 +7,7 @@ import com.squareup.moshi.JsonClass
  * (https://www.sankavollerei.web.id/comic/bacakomik/...), sumber data
  * dari bacakomik.my. GANTI dari endpoint generik lama (/comic/terbaru,
  * /comic/populer, /comic/comic/{slug}, dst - sumber Komiku.org) karena
- * endpoint /bacakomik/* ini lebih stabil.
+ * endpoint bacakomik ini lebih stabil.
  *
  * File ini KHUSUS buat bentuk JSON asli si API - dipetain ke
  * MangaItem/MangaDetailResponse/dst (di MangaModels.kt) lewat
