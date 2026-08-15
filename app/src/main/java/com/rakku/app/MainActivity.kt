@@ -143,6 +143,27 @@ fun MainAppScreen(
     val bottomNavRoutes = listOf("home", "anime", "manga", "chat", "profile")
     val showBottomBar = currentRoute in bottomNavRoutes
 
+    // Dipakai bareng buat SEMUA jalur pindah ke tab utama (home/anime/manga/
+    // chat/profile) - baik dari bottom navigation bar MAUPUN dari tombol
+    // pintasan di dalam HomeScreen (kartu "ANIME"/"MANGA" & "Lihat Semua").
+    // Sebelumnya tombol pintasan di Home manggil navController.navigate(route)
+    // POLOS tanpa opsi ini, jadi destinasi "anime"/"manga" numpuk berkali-kali
+    // di back stack (bukan reuse tab yang sama kayak bottom nav). Numpuknya
+    // banyak entry sama bikin mekanisme saveState/restoreState pas mencet
+    // tombol Beranda jadi gak nemu match yang bener - tombol Beranda kesannya
+    // "gak bisa dipencet" padahal sebenarnya nyangkut nyari state yang salah.
+    val navigateToTab: (String) -> Unit = { route ->
+        if (currentRoute != route) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -163,17 +184,7 @@ fun MainAppScreen(
                         val isSelected = currentRoute == route
                         NavigationBarItem(
                             selected = isSelected,
-                            onClick = {
-                                if (currentRoute != route) {
-                                    navController.navigate(route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
+                            onClick = { navigateToTab(route) },
                             icon = {
                                 Icon(
                                     imageVector = icon,
@@ -209,9 +220,9 @@ fun MainAppScreen(
                 HomeScreen(
                     viewModel = homeViewModel,
                     userProfile = userProfile,
-                    onNavigateToAnimeTab = { navController.navigate("anime") },
-                    onNavigateToMangaTab = { navController.navigate("manga") },
-                    onNavigateToProfile = { navController.navigate("profile") },
+                    onNavigateToAnimeTab = { navigateToTab("anime") },
+                    onNavigateToMangaTab = { navigateToTab("manga") },
+                    onNavigateToProfile = { navigateToTab("profile") },
                     onSelectAnimeDetail = { slug -> navController.navigate("anime_detail/$slug") },
                     onSelectMangaDetail = { url ->
                         val encoded = URLEncoder.encode(url, "UTF-8")
