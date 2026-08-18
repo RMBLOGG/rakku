@@ -12,6 +12,7 @@ import com.rakku.app.data.model.FeedbackReport
 import com.rakku.app.data.model.GlobalChatMessage
 import com.rakku.app.data.model.HistoryItem
 import com.rakku.app.data.model.ProfileBorder
+import com.rakku.app.data.model.PublicProfileStats
 import com.rakku.app.data.model.TopupRequest
 import com.rakku.app.data.model.UserBorder
 import com.rakku.app.data.model.UserProfile
@@ -86,6 +87,23 @@ class SupabaseRepository(
             if (response.isSuccessful) {
                 response.body?.string()?.trim() == "true"
             } else false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // STATS: nambahin akumulasi total menit nonton anime punya user yang lagi
+    // login (RPC increment_watch_minutes, SECURITY DEFINER) - dipanggil tiap
+    // 1 menit selagi layar player anime kebuka, lihat
+    // AnimeViewModel.startWatchMinutesTimer(). Dipisah dari awardExp/EXP timer
+    // karena statistik ini TIDAK dibatasi cap 10 menit/sesi kayak EXP.
+    suspend fun incrementWatchMinutes(minutes: Int = 1): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = moshi.adapter(Map::class.java).toJson(mapOf("p_minutes" to minutes))
+            val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/increment_watch_minutes")
+                .post(bodyJson.toRequestBody(jsonMediaType))
+                .build()
+            client.newCall(request).execute().isSuccessful
         } catch (e: Exception) {
             false
         }
@@ -830,6 +848,48 @@ class SupabaseRepository(
             val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, UserProfile::class.java)
             moshi.adapter<List<UserProfile>>(type).fromJson(response.body?.string() ?: "") ?: emptyList()
         } else emptyList()
+    }
+
+    // ================= PROFIL PUBLIK (klik user di Obrolan Global) =================
+
+    // Data profil + statistik (total komentar, total menit nonton, dsb) milik
+    // user LAIN. Pakai RPC get_public_profile_stats (SECURITY DEFINER) karena
+    // RLS tabel profiles normalnya cuma izinin baca profil sendiri - lihat
+    // profile_stats_migration.sql. RPC ini juga dipakai buat profil sendiri
+    // (aman, karena cuma select data publik + count, gak ada data sensitif).
+    suspend fun getPublicProfileStats(userId: String): PublicProfileStats? = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = moshi.adapter(Map::class.java).toJson(mapOf("p_user_id" to userId))
+            val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/get_public_profile_stats")
+                .post(bodyJson.toRequestBody(jsonMediaType))
+                .build()
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, PublicProfileStats::class.java)
+                moshi.adapter<List<PublicProfileStats>>(type).fromJson(response.body?.string() ?: "")?.firstOrNull()
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // Riwayat tontonan/bacaan milik user LAIN, buat ditampilkan di halaman
+    // profil publik. Pakai RPC get_public_user_history (SECURITY DEFINER)
+    // karena tabel history normalnya cuma bisa dibaca sama pemiliknya sendiri.
+    suspend fun getPublicUserHistory(userId: String, limit: Int = 30): List<HistoryItem> = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = moshi.adapter(Map::class.java).toJson(mapOf("p_user_id" to userId, "p_limit" to limit))
+            val request = newRequestBuilder("$SUPABASE_URL/rest/v1/rpc/get_public_user_history")
+                .post(bodyJson.toRequestBody(jsonMediaType))
+                .build()
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, HistoryItem::class.java)
+                moshi.adapter<List<HistoryItem>>(type).fromJson(response.body?.string() ?: "") ?: emptyList()
+            } else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     private suspend fun fetchProfilesMap(userIds: List<String>): Map<String, UserProfile> = withContext(Dispatchers.IO) {

@@ -95,7 +95,10 @@ fun AnimePlayerScreen(
     // keluar (back/navigasi lain), timernya WAJIB di-stop, kalau enggak EXP bakal
     // terus nambah di background padahal user udah gak nonton.
     DisposableEffect(Unit) {
-        onDispose { viewModel.stopExpTimer() }
+        onDispose {
+            viewModel.stopExpTimer()
+            viewModel.stopWatchMinutesTimer()
+        }
     }
 
     // Layar HP jangan sampe auto-mati/dim gara-gara timeout walau user gak

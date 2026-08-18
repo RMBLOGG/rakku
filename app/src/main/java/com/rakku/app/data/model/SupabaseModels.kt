@@ -24,7 +24,29 @@ data class UserProfile(
     // Nomor urut pendaftaran akun (1, 2, 3, ...) - diisi otomatis oleh
     // database lewat kolom identity, BUKAN oleh client. Dipakai buat
     // ditampilkan di UI sebagai pengganti UUID yang panjang/acak.
-    val user_number: Long? = null
+    val user_number: Long? = null,
+    // Total menit nonton anime, diakumulasi server-side lewat RPC
+    // increment_watch_minutes() - lihat profile_stats_migration.sql &
+    // AnimeViewModel.startWatchMinutesTimer().
+    val total_watch_minutes: Int? = 0
+)
+
+// Profil publik user LAIN (dilihat dari klik nama/avatar di Obrolan
+// Global) beserta statistiknya. Diisi lewat RPC get_public_profile_stats()
+// (SECURITY DEFINER) karena RLS tabel profiles normalnya cuma izinin baca
+// profil sendiri - lihat profile_stats_migration.sql.
+@JsonClass(generateAdapter = true)
+data class PublicProfileStats(
+    val id: String = "",
+    val username: String? = null,
+    val role: String? = "user",
+    val level: Int? = 1,
+    val avatar_url: String? = null,
+    val active_border_url: String? = null,
+    val user_number: Long? = null,
+    val created_at: String? = null,
+    val total_watch_minutes: Int? = 0,
+    val total_comments: Long? = 0
 )
 
 @JsonClass(generateAdapter = true)

@@ -342,7 +342,23 @@ fun MainAppScreen(
             composable("chat") {
                 ChatScreen(
                     viewModel = chatViewModel,
-                    onNavigateToLogin = { navController.navigate("login") }
+                    onNavigateToLogin = { navController.navigate("login") },
+                    onOpenPublicProfile = { userId -> navController.navigate("public_profile/$userId") }
+                )
+            }
+
+            // Profil user LAIN, dibuka dari klik nama/avatar di Obrolan Global.
+            composable("public_profile/{userId}") { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                com.rakku.app.ui.profile.PublicProfileScreen(
+                    userId = userId,
+                    viewModel = profileViewModel,
+                    onBack = { navController.popBackStack() },
+                    onSelectAnimeDetail = { slug -> navController.navigate("anime_detail/$slug") },
+                    onSelectMangaDetail = { url ->
+                        val encoded = URLEncoder.encode(url, "UTF-8")
+                        navController.navigate("manga_detail/$encoded")
+                    }
                 )
             }
 

@@ -11,11 +11,20 @@ import com.rakku.app.data.model.CommentReport
 import com.rakku.app.data.model.FeedbackReport
 import com.rakku.app.data.model.HistoryItem
 import com.rakku.app.data.model.ProfileBorder
+import com.rakku.app.data.model.PublicProfileStats
 import com.rakku.app.data.model.UserProfile
 import com.rakku.app.data.remote.SupabaseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
+// State buat halaman "Profil User Lain" yang dibuka dari klik nama/avatar
+// di Obrolan Global.
+sealed class PublicProfileUiState {
+    object Loading : PublicProfileUiState()
+    data class Success(val profile: PublicProfileStats, val history: List<HistoryItem>) : PublicProfileUiState()
+    data class Error(val message: String) : PublicProfileUiState()
+}
 
 sealed class AdminUiState {
     object Idle : AdminUiState()
@@ -48,6 +57,19 @@ class ProfileViewModel(
     private val _history = MutableStateFlow<List<HistoryItem>>(emptyList())
     val history: StateFlow<List<HistoryItem>> = _history
 
+    // Statistik profil sendiri (total komentar, total menit nonton) - diisi
+    // bareng refreshProfile(). total_watch_minutes juga ada langsung di
+    // UserProfile (kolom asli), tapi total_comments cuma tersedia lewat RPC
+    // get_public_profile_stats, jadi dipisah ke sini biar 1 sumber data yang
+    // sama dipakai ProfileScreen (Kartu Statistik) & PublicProfileScreen.
+    private val _myStats = MutableStateFlow<PublicProfileStats?>(null)
+    val myStats: StateFlow<PublicProfileStats?> = _myStats
+
+    // Profil user LAIN, dibuka dari klik nama/avatar pengirim pesan di
+    // Obrolan Global.
+    private val _publicProfileState = MutableStateFlow<PublicProfileUiState>(PublicProfileUiState.Loading)
+    val publicProfileState: StateFlow<PublicProfileUiState> = _publicProfileState
+
     private val _adminState = MutableStateFlow<AdminUiState>(AdminUiState.Idle)
     val adminState: StateFlow<AdminUiState> = _adminState
 
@@ -69,6 +91,26 @@ class ProfileViewModel(
             if (p != null) {
                 _bookmarks.value = supabaseRepository.getBookmarks(userId)
                 _history.value = supabaseRepository.getWatchHistory(userId)
+                _myStats.value = supabaseRepository.getPublicProfileStats(userId)
+            }
+        }
+    }
+
+    // ================= PROFIL PUBLIK (klik user di Obrolan Global) =================
+
+    fun loadPublicProfile(userId: String) {
+        viewModelScope.launch {
+            _publicProfileState.value = PublicProfileUiState.Loading
+            try {
+                val profile = supabaseRepository.getPublicProfileStats(userId)
+                if (profile == null) {
+                    _publicProfileState.value = PublicProfileUiState.Error("Profil tidak ditemukan")
+                    return@launch
+                }
+                val history = supabaseRepository.getPublicUserHistory(userId)
+                _publicProfileState.value = PublicProfileUiState.Success(profile, history)
+            } catch (e: Exception) {
+                _publicProfileState.value = PublicProfileUiState.Error(e.message ?: "Gagal memuat profil")
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.rakku.app.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,7 +59,8 @@ import com.rakku.app.ui.theme.VioletPrimary
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onOpenPublicProfile: (String) -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val currentUserId = viewModel.sessionManager.getUserId()
@@ -129,7 +131,9 @@ fun ChatScreen(
                         ) {
                             if (!isSelf) {
                                 Box(
-                                    modifier = Modifier.size(36.dp),
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clickable { onOpenPublicProfile(msg.user_id) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     AsyncImage(
@@ -156,7 +160,10 @@ fun ChatScreen(
                             Column(
                                 horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable { onOpenPublicProfile(msg.user_id) }
+                                ) {
                                     Text(
                                         text = if (isSelf) "Saya" else (msg.username ?: "User"),
                                         fontSize = 12.sp,

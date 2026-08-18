@@ -85,6 +85,7 @@ class AnimeViewModel(
     val expToast: StateFlow<Int?> = _expToast
 
     private var expTimerJob: kotlinx.coroutines.Job? = null
+    private var watchMinutesTimerJob: kotlinx.coroutines.Job? = null
 
     fun consumeExpToast() {
         _expToast.value = null
@@ -130,6 +131,27 @@ class AnimeViewModel(
     fun stopExpTimer() {
         expTimerJob?.cancel()
         expTimerJob = null
+    }
+
+    // Timer terpisah dari startExpTimer di atas: statistik "Total menit
+    // menonton" di halaman Profil TIDAK dibatasi cap EXP_MAX_MINUTES_PER_SESSION,
+    // jadi harus jalan sendiri (bukan numpang di loop yang sama) supaya nonton
+    // lama tetap kehitung semua, bukan cuma 10 menit pertama. Jalan selagi
+    // layar player kebuka, di-stop lewat stopWatchMinutesTimer() sama seperti
+    // EXP timer.
+    private fun startWatchMinutesTimer() {
+        watchMinutesTimerJob?.cancel()
+        watchMinutesTimerJob = viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(60_000L)
+                supabaseRepository.incrementWatchMinutes(1)
+            }
+        }
+    }
+
+    fun stopWatchMinutesTimer() {
+        watchMinutesTimerJob?.cancel()
+        watchMinutesTimerJob = null
     }
 
     private val _listState = MutableStateFlow<AnimeListUiState>(AnimeListUiState.Loading)
@@ -386,6 +408,7 @@ class AnimeViewModel(
                 // biar RPC award_exp_once nolak dobel kalau episode ini dibuka lagi.
                 awardExpAndNotify("anime_open:$animeSlug:$episodeSlug", EXP_PER_EPISODE_OPEN)
                 startExpTimer(animeSlug, episodeSlug)
+                startWatchMinutesTimer()
             } catch (e: Exception) {
                 _playerState.value = AnimePlayerUiState.Error(e.message ?: "Gagal memuat player episode")
             }
@@ -448,5 +471,6 @@ class AnimeViewModel(
     override fun onCleared() {
         super.onCleared()
         stopExpTimer()
+        stopWatchMinutesTimer()
     }
 }

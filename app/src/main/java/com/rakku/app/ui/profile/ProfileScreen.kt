@@ -103,6 +103,7 @@ fun ProfileScreen(
     val userProfile by viewModel.userProfile.collectAsState()
     val bookmarks by viewModel.bookmarks.collectAsState()
     val history by viewModel.history.collectAsState()
+    val myStats by viewModel.myStats.collectAsState()
 
     // Refresh data profil (EXP/level/coin) tiap layar ini kebuka - biar kalau ada
     // perubahan dari layar lain (mis. abis dapet EXP nonton anime), langsung
@@ -564,6 +565,36 @@ fun ProfileScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Kartu Statistik: hari bergabung, total komentar, total menit nonton
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                val joinedDays = ProfileDateUtils.daysSince(profile.created_at)
+                ProfileStatItem(
+                    value = joinedDays?.toString() ?: "-",
+                    label = "Hari Bergabung"
+                )
+                ProfileStatItem(
+                    value = (myStats?.total_comments ?: 0).toString(),
+                    label = "Total Komentar"
+                )
+                ProfileStatItem(
+                    value = ProfileDateUtils.formatMinutes(myStats?.total_watch_minutes ?: profile.total_watch_minutes),
+                    label = "Menit Nonton"
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
 
         // Profile Menu Options
@@ -599,6 +630,24 @@ fun ProfileScreen(
         ) {
             Text("Keluar (Logout)", color = Color.Red)
         }
+    }
+}
+
+@Composable
+private fun ProfileStatItem(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = CyanAccent
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = TextSecondary
+        )
     }
 }
 
