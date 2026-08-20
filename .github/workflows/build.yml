@@ -1,4 +1,4 @@
-name: Build Rakku APK
+name: Build Zenime APK (testing)
 
 on:
   push:
@@ -8,8 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      HAS_RELEASE_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
 
     steps:
       - name: Checkout code
@@ -22,7 +20,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
 
@@ -32,61 +30,16 @@ jobs:
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rakku-debug
+          name: Zenime-debug
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
 
-      - name: Build Perf APK (release-optimized, buat tes performa/scroll)
+      - name: Build Perf APK (release-optimized, buat testing performa)
         run: gradle assemblePerf --no-daemon
 
       - name: Upload Perf APK
         uses: actions/upload-artifact@v4
         with:
-          name: Rakku-perf
+          name: Zenime-perf
           path: app/build/outputs/apk/perf/*.apk
           retention-days: 7
-
-      - name: Decode release keystore
-        if: env.HAS_RELEASE_KEYSTORE == 'true'
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d --ignore-garbage > my-upload-key.jks
-          ls -la my-upload-key.jks
-          file my-upload-key.jks
-
-      - name: Build Release AAB (buat Play Store)
-        if: env.HAS_RELEASE_KEYSTORE == 'true'
-        env:
-          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle bundleRelease --no-daemon
-
-      - name: Build Release APK
-        if: env.HAS_RELEASE_KEYSTORE == 'true'
-        env:
-          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle assembleRelease --no-daemon
-
-      - name: Upload Release AAB
-        if: env.HAS_RELEASE_KEYSTORE == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Rakku-release-aab
-          path: app/build/outputs/bundle/release/*.aab
-          retention-days: 7
-
-      - name: Upload Release APK
-        if: env.HAS_RELEASE_KEYSTORE == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Rakku-release-apk
-          path: app/build/outputs/apk/release/*.apk
-          retention-days: 7
-
-      - name: Remove keystore file
-        if: always()
-        run: rm -f my-upload-key.jks

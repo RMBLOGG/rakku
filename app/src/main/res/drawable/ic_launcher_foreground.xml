@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/rakku_icon_fg_1785023546886"
+        android:drawable="@drawable/zenime_logo_1786121211149"
         android:gravity="center" />
 </layer-list>

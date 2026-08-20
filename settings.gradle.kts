@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Rakku"
+rootProject.name = "Zenime"
 
 include(":app")
